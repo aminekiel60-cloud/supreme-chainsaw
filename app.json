@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Locked in",
+    "slug": "locked-in",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "lockedin",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#111111",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.lockedin.app"
+    },
+    "android": {
+      "package": "com.lockedin.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#111111",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#111111",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 160
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
