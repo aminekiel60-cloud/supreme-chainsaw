@@ -1,11 +1,13 @@
 /** PROFILE — edit your details and goals, reminders, and reset your data. */
 import { router } from 'expo-router';
-import { Alert, Platform, ScrollView, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { ProfileForm } from '@/components/ProfileForm';
 import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
+import { useAuth } from '@/lib/auth';
 import { connectHealth, openHealthConnectSettings } from '@/lib/health';
+import { cloudEnabled, db } from '@/lib/supabase';
 import { useStore } from '@/store/store';
 
 const REMINDER_HOURS = [18, 19, 20, 21, 22];
@@ -13,6 +15,28 @@ const REMINDER_HOURS = [18, 19, 20, 21, 22];
 export default function ProfileScreen() {
   const { state, dispatch } = useStore();
   const { settings } = state;
+  const { session, signOut } = useAuth();
+
+  const deleteAccount = () =>
+    Alert.alert(
+      'Delete your account?',
+      'This permanently deletes your account, your logged data, posts, comments and friends. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete forever',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await db().functions.invoke('delete-account', { method: 'POST' });
+            if (error) {
+              Alert.alert('Could not delete your account', 'Please try again later.');
+              return;
+            }
+            await signOut();
+          },
+        },
+      ],
+    );
 
   const reset = () => {
     const run = () => dispatch({ type: 'reset' });
@@ -88,7 +112,18 @@ export default function ProfileScreen() {
         }}
       />
 
-      <Button title="Reset all data" icon="trash" variant="ghost" onPress={reset} />
+      {cloudEnabled ? (
+        <Card style={{ gap: Spacing.md }}>
+          <SectionTitle>Account</SectionTitle>
+          <Text style={ui.muted}>Signed in as {session?.user.email}</Text>
+          <Button title="Sign out" icon="log-out" variant="ghost" onPress={signOut} />
+          <Pressable onPress={deleteAccount} style={{ paddingVertical: 8 }}>
+            <Text style={{ color: Colors.danger, textAlign: 'center', fontWeight: '600' }}>Delete my account</Text>
+          </Pressable>
+        </Card>
+      ) : (
+        <Button title="Reset all data" icon="trash" variant="ghost" onPress={reset} />
+      )}
     </ScrollView>
   );
 }

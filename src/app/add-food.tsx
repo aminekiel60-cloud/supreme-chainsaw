@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Badge, Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
+import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { QUICK_FOODS, type QuickFood } from '@/data/foods';
 import { todayKey } from '@/store/dates';
@@ -49,7 +49,12 @@ export default function AddFoodScreen() {
       </View>
 
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <ComingSoon icon="camera" label="AI photo" />
+        <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/photo', params: { meal } })}>
+          <Card highlight style={{ alignItems: 'center', gap: 6 }}>
+            <Ionicons name="camera" size={26} color={Colors.lime} />
+            <Text style={[ui.text, { fontWeight: '700' }]}>AI photo</Text>
+          </Card>
+        </Pressable>
         <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/scan', params: { meal } })}>
           <Card highlight style={{ alignItems: 'center', gap: 6 }}>
             <Ionicons name="barcode" size={26} color={Colors.lime} />
@@ -87,15 +92,5 @@ export default function AddFoodScreen() {
         </Pressable>
       ))}
     </ScrollView>
-  );
-}
-
-function ComingSoon({ icon, label }: { icon: 'camera' | 'barcode'; label: string }) {
-  return (
-    <Card style={{ flex: 1, alignItems: 'center', gap: 6, opacity: 0.6 }}>
-      <Ionicons name={icon} size={26} color={Colors.lime} />
-      <Text style={[ui.text, { fontWeight: '700' }]}>{label}</Text>
-      <Badge text="SOON" />
-    </Card>
   );
 }

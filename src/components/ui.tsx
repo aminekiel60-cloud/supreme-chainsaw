@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,10 +23,29 @@ import { Logo } from './Logo';
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
 /** Scrollable page with the logo header. */
-export function Screen({ children, right }: { children: ReactNode; right?: ReactNode }) {
+export function Screen({
+  children,
+  right,
+  onRefresh,
+  refreshing = false,
+}: {
+  children: ReactNode;
+  right?: ReactNode;
+  /** Enables pull-to-refresh */
+  onRefresh?: () => void;
+  refreshing?: boolean;
+}) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.lime} colors={[Colors.lime]} />
+          ) : undefined
+        }>
         <View style={styles.header}>
           <Logo />
           {right}

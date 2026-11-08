@@ -77,7 +77,8 @@
           }
         }
       ],
-      "react-native-health-connect"
+      "react-native-health-connect",
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
