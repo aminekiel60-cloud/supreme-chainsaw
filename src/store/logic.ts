@@ -3,7 +3,7 @@
  * These are plain functions (no UI), so they are easy to read and change.
  */
 import { addDays, startOfWeek, todayKey } from './dates';
-import type { AppState, DateKey, Habit, HabitId, Workout } from './types';
+import type { Activity, AppState, DateKey, GoalType, Goals, Habit, HabitId, Profile, Workout } from './types';
 
 export const HABITS: Habit[] = [
   { id: 'protein', title: 'Hit protein goal', kind: 'auto' },
@@ -50,9 +50,24 @@ export function habitDone(state: AppState, date: DateKey, id: HabitId): boolean 
       return totals.kcal > 0 && totals.kcal <= state.goals.kcal;
     case 'workout':
       return workoutsOn(state, date).length > 0;
+    case 'steps':
+      return (state.health[date]?.steps ?? 0) >= 10000 || manualDone(state, date, id);
+    case 'sleep':
+      return sleptBy23(state.health[date]?.sleepStart) || manualDone(state, date, id);
     default:
       return (state.checks[date] ?? []).includes(id);
   }
+}
+
+function manualDone(state: AppState, date: DateKey, id: HabitId) {
+  return (state.checks[date] ?? []).includes(id);
+}
+
+/** True when you fell asleep between 18:00 and 23:00 (local time). */
+function sleptBy23(sleepStart?: string) {
+  if (!sleepStart) return false;
+  const h = new Date(sleepStart).getHours();
+  return h >= 18 && h < 23;
 }
 
 /** Share of habits done on a day, from 0 to 1. */
@@ -139,4 +154,34 @@ export function pace(w: Workout): string | null {
 
 export function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export const ACTIVITY_LEVELS: { id: Activity; label: string; detail: string; factor: number }[] = [
+  { id: 'sedentary', label: 'Sedentary', detail: 'Desk job, little exercise', factor: 1.2 },
+  { id: 'light', label: 'Light', detail: 'Exercise 1–3× per week', factor: 1.375 },
+  { id: 'moderate', label: 'Moderate', detail: 'Exercise 3–5× per week', factor: 1.55 },
+  { id: 'active', label: 'Active', detail: 'Hard training 6–7× per week', factor: 1.725 },
+  { id: 'athlete', label: 'Athlete', detail: 'Training twice a day', factor: 1.9 },
+];
+
+export const GOAL_TYPES: { id: GoalType; label: string; detail: string }[] = [
+  { id: 'cut', label: 'Lose fat', detail: 'About 0.5 kg per week' },
+  { id: 'maintain', label: 'Maintain', detail: 'Stay at your weight, get fitter' },
+  { id: 'bulk', label: 'Build muscle', detail: 'Lean gain, slight surplus' },
+];
+
+/**
+ * Daily calorie and macro goals from your profile.
+ * Calories: Mifflin-St Jeor BMR × activity factor, adjusted for your goal.
+ * Protein: 2.0 g per kg (2.2 when losing fat). Fat: 0.8 g per kg. Carbs: the rest.
+ */
+export function calculateGoals(p: Profile): Goals {
+  const bmr = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age + (p.sex === 'male' ? 5 : -161);
+  const factor = ACTIVITY_LEVELS.find((a) => a.id === p.activity)?.factor ?? 1.2;
+  const adjust = p.goal === 'cut' ? -500 : p.goal === 'bulk' ? 300 : 0;
+  const kcal = Math.max(1200, Math.round((bmr * factor + adjust) / 10) * 10);
+  const protein = Math.round(p.weightKg * (p.goal === 'cut' ? 2.2 : 2.0));
+  const fat = Math.round(p.weightKg * 0.8);
+  const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
+  return { kcal, protein, carbs, fat };
 }

@@ -7,13 +7,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react';
 
-import { newId } from './logic';
-import type { AppState, DateKey, FoodEntry, Goals, HabitId, Workout } from './types';
+import { calculateGoals, newId } from './logic';
+import type { AppState, DateKey, FoodEntry, Goals, HabitId, HealthDay, Profile, Settings, Workout } from './types';
 
 const STORAGE_KEY = 'lockedin:v1';
 
 const initialState: AppState = {
+  profile: null,
+  settings: { healthConnect: false, reminders: true, reminderHour: 20 },
   goals: { kcal: 2400, protein: 160, carbs: 260, fat: 75 },
+  health: {},
   food: [],
   workouts: [],
   checks: {},
@@ -29,12 +32,19 @@ type Action =
   | { type: 'toggleHabit'; date: DateKey; habit: HabitId }
   | { type: 'toggleLike'; postId: string }
   | { type: 'setGoals'; goals: Goals }
+  | { type: 'setProfile'; profile: Profile }
+  | { type: 'setSettings'; settings: Settings }
+  | { type: 'syncHealth'; date: DateKey; day: HealthDay; workouts: Omit<Workout, 'id'>[] }
   | { type: 'reset' };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'load':
-      return { ...initialState, ...action.state };
+      return {
+        ...initialState,
+        ...action.state,
+        settings: { ...initialState.settings, ...action.state.settings },
+      };
     case 'addFood':
       return { ...state, food: [...state.food, { ...action.entry, id: newId() }] };
     case 'removeFood':
@@ -59,6 +69,20 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'setGoals':
       return { ...state, goals: action.goals };
+    case 'setProfile':
+      // Saving a profile also recalculates your daily goals.
+      return { ...state, profile: action.profile, goals: calculateGoals(action.profile) };
+    case 'setSettings':
+      return { ...state, settings: action.settings };
+    case 'syncHealth': {
+      const known = new Set(state.workouts.map((w) => w.externalId).filter(Boolean));
+      const fresh = action.workouts.filter((w) => !known.has(w.externalId));
+      return {
+        ...state,
+        health: { ...state.health, [action.date]: action.day },
+        workouts: [...state.workouts, ...fresh.map((w) => ({ ...w, id: newId() }))],
+      };
+    }
     case 'reset':
       return initialState;
   }

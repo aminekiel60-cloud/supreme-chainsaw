@@ -50,7 +50,12 @@ export default function AddFoodScreen() {
 
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <ComingSoon icon="camera" label="AI photo" />
-        <ComingSoon icon="barcode" label="Scan barcode" />
+        <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/scan', params: { meal } })}>
+          <Card highlight style={{ alignItems: 'center', gap: 6 }}>
+            <Ionicons name="barcode" size={26} color={Colors.lime} />
+            <Text style={[ui.text, { fontWeight: '700' }]}>Scan barcode</Text>
+          </Card>
+        </Pressable>
       </View>
 
       <Card style={{ gap: Spacing.md }}>

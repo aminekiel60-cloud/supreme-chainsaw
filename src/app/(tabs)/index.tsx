@@ -1,12 +1,13 @@
 /** HOME — the progress dashboard: everything about today in one place. */
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HabitList } from '@/components/HabitList';
 import { ProgressRing } from '@/components/ProgressRing';
-import { Badge, Card, ProgressBar, Screen, SectionTitle, Stat, styles as ui } from '@/components/ui';
+import { Badge, Button, Card, ProgressBar, Screen, SectionTitle, Stat, styles as ui } from '@/components/ui';
 import { Colors, Spacing, Type } from '@/constants/theme';
+import { connectHealth } from '@/lib/health';
 import { prettyDate, todayKey } from '@/store/dates';
 import {
   achievements,
@@ -28,7 +29,18 @@ export default function HomeScreen() {
   const unlocked = achievements(state).filter((a) => a.unlocked);
 
   return (
-    <Screen right={<Text style={ui.muted}>{prettyDate(today)}</Text>}>
+    <Screen
+      right={
+        <Pressable onPress={() => router.push('/profile')} style={s.avatar} hitSlop={8}>
+          <Text style={{ color: Colors.background, fontWeight: '800' }}>
+            {(state.profile?.name ?? '?').slice(0, 1).toUpperCase()}
+          </Text>
+        </Pressable>
+      }>
+      <View>
+        <Text style={[Type.title, { color: Colors.text }]}>Hey {state.profile?.name ?? 'there'} 👋</Text>
+        <Text style={ui.muted}>{prettyDate(today)}</Text>
+      </View>
       {/* Streak + points */}
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <Card highlight style={[ui.stat, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
@@ -96,18 +108,8 @@ export default function HomeScreen() {
         )}
       </Card>
 
-      {/* Recover (Garmin) */}
-      <Card style={{ gap: Spacing.md }}>
-        <SectionTitle action={<Badge text="COMING SOON" />}>Recover</SectionTitle>
-        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-          <Stat label="Heart rate" value="—" unit="bpm" />
-          <Stat label="Sleep" value="—" unit="hours" />
-          <Stat label="Steps" value="—" unit="today" />
-        </View>
-        <Text style={ui.muted}>
-          Connect Garmin to sync runs, heart rate, sleep and steps automatically.
-        </Text>
-      </Card>
+      {/* Recover (Health Connect) */}
+      <RecoverCard />
 
       {/* Achievements */}
       <Card style={{ gap: Spacing.md }}>
@@ -133,6 +135,49 @@ export default function HomeScreen() {
   );
 }
 
+function RecoverCard() {
+  const { state, dispatch } = useStore();
+  const today = state.health[todayKey()];
+  const connected = state.settings.healthConnect;
+  const fmtSleep = (m: number) => (m > 0 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}` : '—');
+
+  const connect = async () => {
+    if (!(await connectHealth())) {
+      Alert.alert(
+        'Health Connect',
+        Platform.OS === 'android'
+          ? 'Install or update Health Connect from the Play Store, open your watch app (e.g. Garmin Connect) and allow it to share data with Health Connect. Then try again.'
+          : 'Health Connect is only available on Android.',
+      );
+      return;
+    }
+    dispatch({ type: 'setSettings', settings: { ...state.settings, healthConnect: true } });
+  };
+
+  return (
+    <Card style={{ gap: Spacing.md }}>
+      <SectionTitle action={<Badge text={connected ? 'SYNCED' : 'RECOVER'} />}>Recover</SectionTitle>
+      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+        <Stat label="Resting HR" value={today?.restingHeartRate ? String(today.restingHeartRate) : '—'} unit="bpm" />
+        <Stat label="Sleep" value={fmtSleep(today?.sleepMinutes ?? 0)} unit="last night" />
+        <Stat label="Steps" value={today ? today.steps.toLocaleString('en-US') : '—'} unit="today" />
+      </View>
+      {connected ? (
+        <Text style={ui.muted}>
+          Synced from Health Connect. 10,000 steps and sleep before 23:00 tick your habits automatically.
+        </Text>
+      ) : (
+        <>
+          <Text style={ui.muted}>
+            Connect Health Connect to sync steps, sleep, heart rate and workouts from Garmin or any other watch.
+          </Text>
+          <Button title="Connect Health Connect" icon="heart" variant="ghost" onPress={connect} />
+        </>
+      )}
+    </Card>
+  );
+}
+
 function Macro({ label, value, goal, color }: { label: string; value: number; goal: number; color: string }) {
   return (
     <View style={{ flex: 1, gap: 6 }}>
@@ -147,6 +192,14 @@ function Macro({ label, value, goal, color }: { label: string; value: number; go
 }
 
 const s = StyleSheet.create({
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.lime,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   empty: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   achievement: {
