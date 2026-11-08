@@ -1,9 +1,10 @@
 /** SIGN IN — create an account or log in (email + password). */
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LogoMark } from '@/components/Logo';
+import { PrivacyPolicy } from '@/components/PrivacyPolicy';
 import { Button, Card, Field, styles as ui } from '@/components/ui';
 import { Colors, Spacing, Type } from '@/constants/theme';
 import { db } from '@/lib/supabase';
@@ -15,6 +16,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showPolicy, setShowPolicy] = useState(false);
 
   const submit = async () => {
     setBusy(true);
@@ -110,8 +112,21 @@ export default function SignInScreen() {
               <Text style={{ color: Colors.lime, fontWeight: '700' }}>{mode === 'signUp' ? 'Log in' : 'Create one'}</Text>
             </Text>
           </Pressable>
+          <Pressable onPress={() => setShowPolicy(true)}>
+            <Text style={[ui.muted, { textAlign: 'center' }]}>
+              By creating an account you agree to our <Text style={{ textDecorationLine: 'underline' }}>privacy policy</Text>.
+            </Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal visible={showPolicy} animationType="slide" onRequestClose={() => setShowPolicy(false)}>
+        <SafeAreaView style={ui.safe}>
+          <Pressable onPress={() => setShowPolicy(false)} style={{ padding: 16 }}>
+            <Text style={{ color: Colors.lime, fontWeight: '700', fontSize: 16 }}>‹ Back</Text>
+          </Pressable>
+          <PrivacyPolicy />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

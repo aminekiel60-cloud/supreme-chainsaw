@@ -75,6 +75,7 @@ function RootStack() {
         <Stack.Screen name="photo" options={{ presentation: 'modal', title: 'AI food photo' }} />
         <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan barcode' }} />
         <Stack.Screen name="post/[id]" options={{ presentation: 'modal', title: 'Comments' }} />
+        <Stack.Screen name="privacy" options={{ presentation: 'modal', title: 'Privacy policy' }} />
         <Stack.Screen name="profile" options={{ presentation: 'modal', title: 'Profile & settings' }} />
       </Stack.Protected>
     </Stack>
