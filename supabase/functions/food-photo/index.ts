@@ -11,10 +11,10 @@ const DAILY_LIMIT = 5;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') });
-const admin = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SECRET_KEY')!,
-);
+// Server-side key (bypasses Row Level Security). Supabase provides it automatically:
+// SUPABASE_SECRET_KEYS on projects with the new API keys, SUPABASE_SERVICE_ROLE_KEY on older ones.
+const secretKeys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+const admin = createClient(Deno.env.get('SUPABASE_URL')!, secretKeys.default ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
 const MEAL_SCHEMA = {
   type: 'object',
