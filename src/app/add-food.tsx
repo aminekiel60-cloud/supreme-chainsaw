@@ -7,9 +7,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { QUICK_FOODS, type QuickFood } from '@/data/foods';
-import { todayKey } from '@/store/dates';
+import { addDays, todayKey } from '@/store/dates';
 import { useStore } from '@/store/store';
-import type { Meal } from '@/store/types';
+import type { FoodEntry, Meal } from '@/store/types';
 
 const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
 
@@ -24,7 +24,8 @@ function defaultMeal(): Meal {
 const num = (v: string) => Number(v.replace(',', '.')) || 0;
 
 export default function AddFoodScreen() {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
+  const frequent = frequentFoods(state.food);
   const [meal, setMeal] = useState<Meal>(defaultMeal);
   const [name, setName] = useState('');
   const [kcal, setKcal] = useState('');
@@ -77,20 +78,48 @@ export default function AddFoodScreen() {
         <Button title={`Add to ${meal}`} icon="checkmark" disabled={!name.trim() || !kcal} onPress={addManual} />
       </Card>
 
+      {frequent.length > 0 && <SectionTitle>Your frequent foods</SectionTitle>}
+      {frequent.map((f) => (
+        <FoodRow key={`fav-${f.name}`} food={f} onPress={() => add(f)} />
+      ))}
+
       <SectionTitle>Quick add</SectionTitle>
       {QUICK_FOODS.map((f) => (
-        <Pressable key={f.name} onPress={() => add(f)}>
-          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: 14 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={ui.text}>{f.name}</Text>
-              <Text style={ui.muted}>
-                {f.kcal} kcal · P {f.protein}g · C {f.carbs}g · F {f.fat}g
-              </Text>
-            </View>
-            <Ionicons name="add-circle" size={26} color={Colors.lime} />
-          </Card>
-        </Pressable>
+        <FoodRow key={f.name} food={f} onPress={() => add(f)} />
       ))}
     </ScrollView>
+  );
+}
+
+/** The foods you logged most in the last 30 days (2+ times), most frequent first. */
+function frequentFoods(food: FoodEntry[]): QuickFood[] {
+  const since = addDays(todayKey(), -30);
+  const counts = new Map<string, { food: QuickFood; n: number }>();
+  for (const f of food.filter((x) => x.date >= since)) {
+    const key = `${f.name}|${f.kcal}`;
+    const hit = counts.get(key);
+    if (hit) hit.n++;
+    else counts.set(key, { food: { name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat }, n: 1 });
+  }
+  return [...counts.values()]
+    .filter((c) => c.n >= 2)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 6)
+    .map((c) => c.food);
+}
+
+function FoodRow({ food, onPress }: { food: QuickFood; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress}>
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: 14 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={ui.text}>{food.name}</Text>
+          <Text style={ui.muted}>
+            {food.kcal} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g
+          </Text>
+        </View>
+        <Ionicons name="add-circle" size={26} color={Colors.lime} />
+      </Card>
+    </Pressable>
   );
 }

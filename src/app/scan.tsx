@@ -3,11 +3,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { lookupBarcode, portion, type Product } from '@/data/openFoodFacts';
+import { portion, type Product } from '@/data/openFoodFacts';
+import { addCommunityFood, findProduct, reportCommunityFood } from '@/lib/communityFoods';
+import { cloudEnabled } from '@/lib/supabase';
 import { todayKey } from '@/store/dates';
 import { useStore } from '@/store/store';
 import type { Meal } from '@/store/types';
@@ -24,14 +26,17 @@ export default function ScanScreen() {
   const [product, setProduct] = useState<Product | null>(null);
   const [grams, setGrams] = useState('100');
   const [meal, setMeal] = useState<Meal>(params.meal ?? 'Snacks');
+  const [barcode, setBarcode] = useState('');
+  const [adding, setAdding] = useState(false);
   const handled = useRef(false);
 
   const onScanned = async ({ data }: BarcodeScanningResult) => {
     if (handled.current) return; // the camera fires many times per second
     handled.current = true;
     setStatus('loading');
+    setBarcode(data);
     try {
-      const found = await lookupBarcode(data);
+      const found = await findProduct(data);
       if (found) {
         setProduct(found);
         setGrams(String(found.servingGrams ?? 100));
@@ -47,6 +52,7 @@ export default function ScanScreen() {
   const scanAgain = () => {
     handled.current = false;
     setProduct(null);
+    setAdding(false);
     setStatus('scanning');
   };
 
@@ -82,20 +88,53 @@ export default function ScanScreen() {
     );
   }
 
+  if (status === 'notFound' && adding) {
+    return (
+      <AddProductForm
+        barcode={barcode}
+        onCancel={() => setAdding(false)}
+        onSaved={(p) => {
+          setProduct(p);
+          setGrams(String(p.servingGrams ?? 100));
+          setAdding(false);
+          setStatus('found');
+        }}
+      />
+    );
+  }
+
   if (status !== 'found' || !product) {
     return (
       <View style={[s.center, { padding: Spacing.xl, gap: Spacing.lg }]}>
         <Ionicons name="help-circle" size={48} color={Colors.textMuted} />
         <Text style={[ui.text, { textAlign: 'center' }]}>
           {status === 'notFound'
-            ? 'This product is not in the Open Food Facts database yet. You can add it by hand.'
+            ? cloudEnabled
+              ? "This product isn't in our database yet. Add it once and everyone on Locked in can scan it."
+              : 'This product is not in the Open Food Facts database yet. You can add it by hand.'
             : 'Could not reach the food database. Check your internet connection.'}
         </Text>
-        <Button title="Scan again" icon="scan" onPress={scanAgain} />
+        {status === 'notFound' && cloudEnabled && (
+          <Button title="Add this product" icon="add-circle" onPress={() => setAdding(true)} />
+        )}
+        <Button title="Scan again" icon="scan" variant="ghost" onPress={scanAgain} />
         <Button title="Add by hand" icon="create" variant="ghost" onPress={() => router.back()} />
       </View>
     );
   }
+
+  const report = () =>
+    Alert.alert('Report wrong values?', 'If 3 people report this product, it is removed so someone can add it again correctly.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Report',
+        style: 'destructive',
+        onPress: () =>
+          reportCommunityFood(product.barcode)
+            .then(() => Alert.alert('Thanks!', 'Your report helps keep the food database correct.'))
+            .catch((e: Error) => Alert.alert('Oops', e.message)),
+      },
+    ]);
 
   const g = Number(grams.replace(',', '.')) || 0;
   const n = portion(product, g);
@@ -108,6 +147,16 @@ export default function ScanScreen() {
           Per 100 g: {product.per100.kcal} kcal · P {product.per100.protein}g · C {product.per100.carbs}g · F{' '}
           {product.per100.fat}g
         </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={ui.muted}>
+            {product.source === 'community' ? 'Added by the Locked in community' : 'From Open Food Facts'}
+          </Text>
+          {product.source === 'community' && (
+            <Text onPress={report} style={{ color: Colors.textMuted, textDecorationLine: 'underline', fontSize: 13 }}>
+              Report wrong values
+            </Text>
+          )}
+        </View>
       </Card>
 
       <Card style={{ gap: Spacing.md }}>
@@ -142,6 +191,78 @@ export default function ScanScreen() {
         }}
       />
       <Button title="Scan another" icon="scan" variant="ghost" onPress={scanAgain} />
+    </ScrollView>
+  );
+}
+
+const num = (v: string) => Number(v.replace(',', '.'));
+
+/** Form to add a product that isn't in any database yet. Values per 100 g, as on the label. */
+function AddProductForm({
+  barcode,
+  onCancel,
+  onSaved,
+}: {
+  barcode: string;
+  onCancel: () => void;
+  onSaved: (p: Product) => void;
+}) {
+  const [name, setName] = useState('');
+  const [kcal, setKcal] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
+  const [serving, setServing] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const values = [kcal, protein, carbs, fat].map(num);
+  const valid =
+    name.trim().length > 0 &&
+    values.every((v) => Number.isFinite(v) && v >= 0) &&
+    values[0] <= 950 &&
+    values.slice(1).every((v) => v <= 100) &&
+    [kcal, protein, carbs, fat].every((v) => v.trim() !== '');
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const p = await addCommunityFood({
+        barcode,
+        name,
+        per100: { kcal: values[0], protein: values[1], carbs: values[2], fat: values[3] },
+        servingGrams: num(serving) > 0 ? num(serving) : null,
+      });
+      onSaved(p);
+    } catch (e) {
+      Alert.alert('Could not add product', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
+      <Card style={{ gap: Spacing.md }}>
+        <SectionTitle>Add product</SectionTitle>
+        <Text style={ui.muted}>Copy the values from the nutrition label (per 100 g). Barcode {barcode}</Text>
+        <Field label="Product name" placeholder="e.g. Delhaize Skyr Natuur" value={name} onChangeText={setName} />
+        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+          <Field label="kcal / 100 g" keyboardType="decimal-pad" placeholder="0" value={kcal} onChangeText={setKcal} />
+          <Field label="Protein g" keyboardType="decimal-pad" placeholder="0" value={protein} onChangeText={setProtein} />
+        </View>
+        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+          <Field label="Carbs g" keyboardType="decimal-pad" placeholder="0" value={carbs} onChangeText={setCarbs} />
+          <Field label="Fat g" keyboardType="decimal-pad" placeholder="0" value={fat} onChangeText={setFat} />
+        </View>
+        <Field label="Serving size in g (optional)" keyboardType="decimal-pad" placeholder="e.g. 150" value={serving} onChangeText={setServing} />
+        <Text style={ui.muted}>Shared with everyone on Locked in as soon as you save it.</Text>
+      </Card>
+      {saving ? (
+        <ActivityIndicator color={Colors.lime} />
+      ) : (
+        <Button title="Save for everyone" icon="people" disabled={!valid} onPress={save} />
+      )}
+      <Button title="Cancel" variant="ghost" onPress={onCancel} />
     </ScrollView>
   );
 }

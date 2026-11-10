@@ -11,6 +11,8 @@ export type Product = {
   per100: { kcal: number; protein: number; carbs: number; fat: number };
   /** Grams in one serving, if the product lists it */
   servingGrams: number | null;
+  /** Where the data came from */
+  source: 'openfoodfacts' | 'community';
 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -41,6 +43,7 @@ export async function lookupBarcode(barcode: string): Promise<Product | null> {
       fat: round1(Number(n.fat_100g ?? 0)),
     },
     servingGrams: Number(p.serving_quantity) > 0 ? Number(p.serving_quantity) : null,
+    source: 'openfoodfacts',
   };
 }
 
