@@ -47,7 +47,9 @@ export default function HomeScreen() {
           <Ionicons name="flame" size={26} color={Colors.lime} />
           <View>
             <Text style={ui.statLabel}>Streak</Text>
-            <Text style={ui.statValue}>{streak} days</Text>
+            <Text style={ui.statValue}>
+              {streak} {streak === 1 ? 'day' : 'days'}
+            </Text>
           </View>
         </Card>
         <Card style={[ui.stat, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
