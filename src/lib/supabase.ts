@@ -8,7 +8,7 @@
  * Without these variables the app runs in "local mode": no account,
  * data only on this phone, demo friends.
  */
-import 'expo-sqlite/localStorage/install';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 
@@ -20,7 +20,8 @@ export const cloudEnabled = Boolean(url && key);
 export const supabase: SupabaseClient | null = cloudEnabled
   ? createClient(url!, key!, {
       auth: {
-        storage: localStorage,
+        // Keeps you logged in between app launches (same storage the app uses for your log).
+        storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
