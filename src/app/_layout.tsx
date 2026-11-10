@@ -1,10 +1,14 @@
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 
+import { Celebration } from '@/components/Celebration';
+import { LogoIntro } from '@/components/LogoIntro';
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { useCelebrations } from '@/lib/celebrations';
 import { useHealthSync } from '@/lib/health';
 import { useStreakReminders } from '@/lib/reminders';
 import { cloudEnabled } from '@/lib/supabase';
@@ -46,6 +50,9 @@ function RootStack() {
   const onboarded = state.profile !== null;
   useStreakReminders(state, ready && signedIn);
   useHealthSync(ready && signedIn && state.settings.healthConnect, dispatch);
+  const celebration = useCelebrations(state, ready && signedIn && onboarded);
+  const [showIntro, setShowIntro] = useState(true);
+  const hideIntro = useCallback(() => setShowIntro(false), []);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
@@ -54,30 +61,35 @@ function RootStack() {
   if (!ready) return null;
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: Colors.background },
-        headerTintColor: Colors.lime,
-        headerTitleStyle: { color: Colors.text, fontWeight: '700' },
-        contentStyle: { backgroundColor: Colors.background },
-      }}>
-      {/* Order: sign in (when accounts are enabled) → onboarding → the app. */}
-      <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      </Stack.Protected>
-      <Stack.Protected guard={signedIn && !onboarded}>
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      </Stack.Protected>
-      <Stack.Protected guard={signedIn && onboarded}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="add-food" options={{ presentation: 'modal', title: 'Add food' }} />
-        <Stack.Screen name="log-workout" options={{ presentation: 'modal', title: 'Log workout' }} />
-        <Stack.Screen name="photo" options={{ presentation: 'modal', title: 'AI food photo' }} />
-        <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan barcode' }} />
-        <Stack.Screen name="post/[id]" options={{ presentation: 'modal', title: 'Comments' }} />
-        <Stack.Screen name="privacy" options={{ presentation: 'modal', title: 'Privacy policy' }} />
-        <Stack.Screen name="profile" options={{ presentation: 'modal', title: 'Profile & settings' }} />
-      </Stack.Protected>
-    </Stack>
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.lime,
+          headerTitleStyle: { color: Colors.text, fontWeight: '700' },
+          contentStyle: { backgroundColor: Colors.background },
+          animation: 'fade_from_bottom',
+        }}>
+        {/* Order: sign in (when accounts are enabled) → onboarding → the app. */}
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn && !onboarded}>
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn && onboarded}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="add-food" options={{ presentation: 'modal', title: 'Add food' }} />
+          <Stack.Screen name="log-workout" options={{ presentation: 'modal', title: 'Log workout' }} />
+          <Stack.Screen name="photo" options={{ presentation: 'modal', title: 'AI food photo' }} />
+          <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan barcode' }} />
+          <Stack.Screen name="post/[id]" options={{ presentation: 'modal', title: 'Comments' }} />
+          <Stack.Screen name="privacy" options={{ presentation: 'modal', title: 'Privacy policy' }} />
+          <Stack.Screen name="profile" options={{ presentation: 'modal', title: 'Profile & settings' }} />
+        </Stack.Protected>
+      </Stack>
+      {celebration.kind && <Celebration kind={celebration.kind} onDone={celebration.clear} />}
+      {showIntro && <LogoIntro onDone={hideIntro} />}
+    </View>
   );
 }

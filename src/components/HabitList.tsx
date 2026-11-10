@@ -2,9 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { haptics } from '@/lib/haptics';
 import { HABITS, habitDone } from '@/store/logic';
 import { useStore } from '@/store/store';
 import type { DateKey } from '@/store/types';
+import { Pop } from './motion';
 
 /**
  * Checklist of daily habits. "Auto" habits tick themselves from your logs;
@@ -22,11 +24,14 @@ export function HabitList({ date }: { date: DateKey }) {
           <Pressable
             key={habit.id}
             disabled={!manual}
-            onPress={() => dispatch({ type: 'toggleHabit', date, habit: habit.id })}
+            onPress={() => {
+              haptics.tap();
+              dispatch({ type: 'toggleHabit', date, habit: habit.id });
+            }}
             style={({ pressed }) => [styles.row, done && styles.rowDone, pressed && { opacity: 0.7 }]}>
-            <View style={[styles.check, done && styles.checkDone]}>
+            <Pop trigger={done} style={[styles.check, done && styles.checkDone]}>
               {done && <Ionicons name="checkmark" size={16} color={Colors.background} />}
-            </View>
+            </Pop>
             <Text style={styles.title}>{habit.title}</Text>
             <Text style={styles.kind}>{manual ? 'tap' : 'auto'}</Text>
           </Pressable>

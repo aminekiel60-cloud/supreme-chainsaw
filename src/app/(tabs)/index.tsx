@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HabitList } from '@/components/HabitList';
+import { CountUp, FadeInCard } from '@/components/motion';
 import { ProgressRing } from '@/components/ProgressRing';
 import { Badge, Button, Card, ProgressBar, Screen, SectionTitle, Stat, styles as ui } from '@/components/ui';
 import { Colors, Spacing, Type } from '@/constants/theme';
@@ -42,7 +43,7 @@ export default function HomeScreen() {
         <Text style={ui.muted}>{prettyDate(today)}</Text>
       </View>
       {/* Streak + points */}
-      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+      <FadeInCard index={0} style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <Card highlight style={[ui.stat, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
           <Ionicons name="flame" size={26} color={Colors.lime} />
           <View>
@@ -56,83 +57,93 @@ export default function HomeScreen() {
           <Ionicons name="flash" size={24} color={Colors.lime} />
           <View>
             <Text style={ui.statLabel}>Points this week</Text>
-            <Text style={ui.statValue}>{weekPoints(state)}</Text>
+            <CountUp value={weekPoints(state)} style={ui.statValue} />
           </View>
         </Card>
-      </View>
+      </FadeInCard>
 
       {/* Fuel */}
-      <Pressable onPress={() => router.navigate('/nutrition')}>
-        <Card style={{ alignItems: 'center', gap: Spacing.lg }}>
-          <View style={{ alignSelf: 'stretch' }}>
-            <SectionTitle action={<Badge text="FUEL" />}>Today&apos;s intake</SectionTitle>
-          </View>
-          <ProgressRing size={190} stroke={14} progress={totals.kcal / state.goals.kcal}>
-            <Text style={[Type.hero, { color: Colors.text }]}>{Math.round(totals.kcal)}</Text>
-            <Text style={ui.muted}>kcal / {state.goals.kcal.toLocaleString('en-US')}</Text>
-          </ProgressRing>
-          <View style={{ flexDirection: 'row', gap: Spacing.md, alignSelf: 'stretch' }}>
-            <Macro label="Protein" value={totals.protein} goal={state.goals.protein} color={Colors.protein} />
-            <Macro label="Carbs" value={totals.carbs} goal={state.goals.carbs} color={Colors.carbs} />
-            <Macro label="Fat" value={totals.fat} goal={state.goals.fat} color={Colors.fat} />
-          </View>
-        </Card>
-      </Pressable>
+      <FadeInCard index={1}>
+        <Pressable onPress={() => router.navigate('/nutrition')}>
+          <Card style={{ alignItems: 'center', gap: Spacing.lg }}>
+            <View style={{ alignSelf: 'stretch' }}>
+              <SectionTitle action={<Badge text="FUEL" />}>Today&apos;s intake</SectionTitle>
+            </View>
+            <ProgressRing size={190} stroke={14} progress={totals.kcal / state.goals.kcal}>
+              <CountUp value={Math.round(totals.kcal)} style={[Type.hero, { color: Colors.text }]} />
+              <Text style={ui.muted}>kcal / {state.goals.kcal.toLocaleString('en-US')}</Text>
+            </ProgressRing>
+            <View style={{ flexDirection: 'row', gap: Spacing.md, alignSelf: 'stretch' }}>
+              <Macro label="Protein" value={totals.protein} goal={state.goals.protein} color={Colors.protein} />
+              <Macro label="Carbs" value={totals.carbs} goal={state.goals.carbs} color={Colors.carbs} />
+              <Macro label="Fat" value={totals.fat} goal={state.goals.fat} color={Colors.fat} />
+            </View>
+          </Card>
+        </Pressable>
+      </FadeInCard>
 
       {/* Build habits */}
-      <Card style={{ gap: Spacing.md }}>
-        <View style={s.rowBetween}>
-          <Text style={[Type.heading, { color: Colors.text }]}>Daily habits</Text>
-          <Text style={[Type.title, { color: Colors.lime }]}>{Math.round(progress * 100)}%</Text>
-        </View>
-        <ProgressBar progress={progress} />
-        <HabitList date={today} />
-      </Card>
+      <FadeInCard index={2}>
+        <Card style={{ gap: Spacing.md }}>
+          <View style={s.rowBetween}>
+            <Text style={[Type.heading, { color: Colors.text }]}>Daily habits</Text>
+            <CountUp value={Math.round(progress * 100)} format={(n) => `${n}%`} style={[Type.title, { color: Colors.lime }]} />
+          </View>
+          <ProgressBar progress={progress} />
+          <HabitList date={today} />
+        </Card>
+      </FadeInCard>
 
       {/* Train */}
-      <Card style={{ gap: Spacing.md }}>
-        <SectionTitle action={<Badge text="TRAIN" />}>Today&apos;s training</SectionTitle>
-        {todaysWorkouts.length === 0 ? (
-          <Pressable onPress={() => router.push('/log-workout')} style={s.empty}>
-            <Ionicons name="add-circle" size={22} color={Colors.lime} />
-            <Text style={ui.text}>No workout yet — log one</Text>
-          </Pressable>
-        ) : (
-          todaysWorkouts.map((w) => (
-            <View key={w.id} style={s.rowBetween}>
-              <Text style={ui.text}>{w.title}</Text>
-              <Text style={ui.muted}>
-                {w.distanceKm ? `${w.distanceKm} km · ` : ''}
-                {w.durationMin} min
-              </Text>
-            </View>
-          ))
-        )}
-      </Card>
+      <FadeInCard index={3}>
+        <Card style={{ gap: Spacing.md }}>
+          <SectionTitle action={<Badge text="TRAIN" />}>Today&apos;s training</SectionTitle>
+          {todaysWorkouts.length === 0 ? (
+            <Pressable onPress={() => router.push('/log-workout')} style={s.empty}>
+              <Ionicons name="add-circle" size={22} color={Colors.lime} />
+              <Text style={ui.text}>No workout yet — log one</Text>
+            </Pressable>
+          ) : (
+            todaysWorkouts.map((w) => (
+              <View key={w.id} style={s.rowBetween}>
+                <Text style={ui.text}>{w.title}</Text>
+                <Text style={ui.muted}>
+                  {w.distanceKm ? `${w.distanceKm} km · ` : ''}
+                  {w.durationMin} min
+                </Text>
+              </View>
+            ))
+          )}
+        </Card>
+      </FadeInCard>
 
       {/* Recover (Health Connect) */}
-      <RecoverCard />
+      <FadeInCard index={4}>
+        <RecoverCard />
+      </FadeInCard>
 
       {/* Achievements */}
-      <Card style={{ gap: Spacing.md }}>
-        <SectionTitle action={<Text style={ui.muted}>{unlocked.length} / {achievements(state).length}</Text>}>
-          Achievements
-        </SectionTitle>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
-          {achievements(state).map((a) => (
-            <View key={a.id} style={[s.achievement, a.unlocked && s.achievementOn]}>
-              <Ionicons
-                name={a.unlocked ? 'trophy' : 'lock-closed'}
-                size={14}
-                color={a.unlocked ? Colors.lime : Colors.textFaint}
-              />
-              <Text style={{ color: a.unlocked ? Colors.text : Colors.textFaint, fontSize: 12, fontWeight: '600' }}>
-                {a.title}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </Card>
+      <FadeInCard index={5}>
+        <Card style={{ gap: Spacing.md }}>
+          <SectionTitle action={<Text style={ui.muted}>{unlocked.length} / {achievements(state).length}</Text>}>
+            Achievements
+          </SectionTitle>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+            {achievements(state).map((a) => (
+              <View key={a.id} style={[s.achievement, a.unlocked && s.achievementOn]}>
+                <Ionicons
+                  name={a.unlocked ? 'trophy' : 'lock-closed'}
+                  size={14}
+                  color={a.unlocked ? Colors.lime : Colors.textFaint}
+                />
+                <Text style={{ color: a.unlocked ? Colors.text : Colors.textFaint, fontSize: 12, fontWeight: '600' }}>
+                  {a.title}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      </FadeInCard>
     </Screen>
   );
 }

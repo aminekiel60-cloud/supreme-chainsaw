@@ -5,7 +5,9 @@
  * In a later stage this is where syncing to a cloud account plugs in.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useReducer, useState, type ReactNode } from 'react';
+
+import { haptics } from '@/lib/haptics';
 
 import { calculateGoals, newId } from './logic';
 import type { AppState, DateKey, FoodEntry, Goals, HabitId, HealthDay, Profile, Settings, Workout } from './types';
@@ -111,7 +113,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
   }, [state, ready]);
 
-  return <StoreContext.Provider value={{ state, dispatch, ready }}>{children}</StoreContext.Provider>;
+  // A satisfying tap whenever you log food or a workout.
+  const dispatchWithFeedback = useCallback((action: Action) => {
+    if (action.type === 'addFood' || action.type === 'addWorkout') haptics.add();
+    dispatch(action);
+  }, []);
+
+  return (
+    <StoreContext.Provider value={{ state, dispatch: dispatchWithFeedback, ready }}>{children}</StoreContext.Provider>
+  );
 }
 
 export function useStore(): Store {

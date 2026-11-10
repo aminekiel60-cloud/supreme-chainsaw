@@ -2,7 +2,7 @@
  * Small reusable building blocks so every screen looks consistent.
  */
 import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps, ReactNode } from 'react';
+import { useEffect, type ComponentProps, type ReactNode } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -15,6 +15,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
@@ -77,11 +78,17 @@ export function SectionTitle({ children, action }: { children: ReactNode; action
   );
 }
 
+/** A bar that grows smoothly to its new value. */
 export function ProgressBar({ progress, color = Colors.lime }: { progress: number; color?: string }) {
-  const pct = `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%` as const;
+  const target = Math.max(0, Math.min(1, progress)) * 100;
+  const width = useSharedValue(0);
+  useEffect(() => {
+    width.value = withTiming(target, { duration: 700, easing: Easing.out(Easing.cubic) });
+  }, [target, width]);
+  const animated = useAnimatedStyle(() => ({ width: `${width.value}%` }));
   return (
     <View style={styles.barTrack}>
-      <View style={[styles.barFill, { width: pct, backgroundColor: color }]} />
+      <Animated.View style={[styles.barFill, { backgroundColor: color }, animated]} />
     </View>
   );
 }
