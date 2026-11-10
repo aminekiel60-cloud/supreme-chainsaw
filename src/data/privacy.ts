@@ -28,7 +28,7 @@ export const PRIVACY_POLICY: { title: string; body: string }[] = [
   },
   {
     title: 'Who processes your data',
-    body: '• Supabase (database, login and server functions), servers in the EU (Frankfurt).\n• Anthropic (AI meal photo recognition).\n• Open Food Facts (barcode lookups; only the barcode number is sent).\n• Expo (app updates and crash-free delivery of the app).\nThese providers only process data on our instructions.',
+    body: '• Supabase (database, login and server functions), servers in the EU (Ireland).\n• Anthropic (AI meal photo recognition).\n• Open Food Facts (barcode lookups; only the barcode number is sent).\n• Expo (app updates and crash-free delivery of the app).\nThese providers only process data on our instructions.',
   },
   {
     title: 'Legal basis (GDPR)',

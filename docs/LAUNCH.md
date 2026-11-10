@@ -5,7 +5,7 @@ A step-by-step checklist. ✅ = done in the code, 👤 = you, 🤝 = together in
 ## 1. Accounts and backend
 
 - 👤 **Google Play Console** — play.google.com/console → sign up as an *individual*, pay $25, verify your identity (takes a few days).
-- 👤 **Supabase** — supabase.com → New project `locked-in`, region **Central EU (Frankfurt)**. Save the database password in a password manager.
+- 👤 **Supabase** — supabase.com → New project `locked-in`, region in the **EU** (this project: West EU, Ireland). Save the database password in a password manager.
 - 🤝 **Set up the database** — Claude runs the files in `supabase/migrations/` and deploys the functions in `supabase/functions/` using a Supabase access token you enter in the secure form (never in chat).
 - 👤 **Anthropic key** — console.anthropic.com → API keys → Create key. Paste it **only** in Supabase → Edge Functions → Secrets as `ANTHROPIC_API_KEY`. Add ~$5 credit; each AI photo costs about $0.02.
 - 🤝 **Connect the app** — put the project URL and publishable key in `.env` (see `.env.example`). Both are public by design.

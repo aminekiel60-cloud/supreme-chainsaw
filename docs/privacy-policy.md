@@ -29,7 +29,7 @@ When you use AI photo, the photo is sent to Anthropic (Claude) to recognise the 
 
 ## Who processes your data
 
-• Supabase (database, login and server functions), servers in the EU (Frankfurt).
+• Supabase (database, login and server functions), servers in the EU (Ireland).
 • Anthropic (AI meal photo recognition).
 • Open Food Facts (barcode lookups; only the barcode number is sent).
 • Expo (app updates and crash-free delivery of the app).
