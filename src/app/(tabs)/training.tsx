@@ -66,7 +66,9 @@ export default function TrainingScreen() {
             <Text style={ui.muted}>
               {w.durationMin} min
               {w.distanceKm ? ` · ${w.distanceKm} km · ${pace(w)}` : ''}
-              {sets ? ` · ${w.exercises!.length} exercises · ${sets} sets · ${volume.toLocaleString('en-US')} kg volume` : ''}
+              {sets
+                ? ` · ${w.exercises!.length} exercise${w.exercises!.length === 1 ? '' : 's'} · ${sets} set${sets === 1 ? '' : 's'} · ${volume.toLocaleString('en-US')} kg volume`
+                : ''}
             </Text>
             {w.exercises?.map((e, i) => (
               <Text key={i} style={{ color: Colors.text, fontSize: 13 }}>
