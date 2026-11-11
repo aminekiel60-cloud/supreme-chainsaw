@@ -9,6 +9,8 @@ export const haptics = {
   tap: () => enabled && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
   /** Medium tap: adding food or a workout */
   add: () => enabled && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}),
+  /** Firm click: the lock closing in the intro */
+  lock: () => enabled && Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
   /** Success pattern: locking in your day */
   success: () => enabled && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}),
 };

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
-import { HABITS, habitDone } from '@/store/logic';
+import { HABITS, habitDone, habitTitle } from '@/store/logic';
 import { useStore } from '@/store/store';
 import type { DateKey } from '@/store/types';
 import { Pop } from './motion';
@@ -32,7 +32,7 @@ export function HabitList({ date }: { date: DateKey }) {
             <Pop trigger={done} style={[styles.check, done && styles.checkDone]}>
               {done && <Ionicons name="checkmark" size={16} color={Colors.background} />}
             </Pop>
-            <Text style={styles.title}>{habit.title}</Text>
+            <Text style={styles.title}>{habitTitle(state, habit.id)}</Text>
             <Text style={styles.kind}>{manual ? 'tap' : 'auto'}</Text>
           </Pressable>
         );

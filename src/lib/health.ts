@@ -24,6 +24,7 @@ import {
 } from 'react-native-health-connect';
 
 import { addDays, fromKey, todayKey } from '@/store/dates';
+import { sport } from '@/store/logic';
 import type { DateKey, HealthDay, Workout, WorkoutType } from '@/store/types';
 
 const PERMISSIONS = [
@@ -67,12 +68,26 @@ const between = (start: Date, end: Date) => ({
 });
 
 function workoutType(exerciseType: number): WorkoutType {
-  if (exerciseType === ExerciseType.RUNNING || exerciseType === ExerciseType.RUNNING_TREADMILL) return 'run';
-  if (exerciseType === ExerciseType.STRENGTH_TRAINING || exerciseType === ExerciseType.WEIGHTLIFTING) return 'gym';
-  return 'other';
+  switch (exerciseType) {
+    case ExerciseType.RUNNING:
+    case ExerciseType.RUNNING_TREADMILL:
+      return 'run';
+    case ExerciseType.WALKING:
+    case ExerciseType.HIKING:
+      return 'walk';
+    case ExerciseType.BIKING:
+    case ExerciseType.BIKING_STATIONARY:
+      return 'cycle';
+    case ExerciseType.SWIMMING_POOL:
+    case ExerciseType.SWIMMING_OPEN_WATER:
+      return 'swim';
+    case ExerciseType.STRENGTH_TRAINING:
+    case ExerciseType.WEIGHTLIFTING:
+      return 'gym';
+    default:
+      return 'other';
+  }
 }
-
-const TITLES: Record<WorkoutType, string> = { run: 'Run', gym: 'Gym session', other: 'Workout' };
 
 /** Read one day's numbers and that day's workouts. */
 async function readDay(date: DateKey): Promise<{ day: HealthDay; workouts: Omit<Workout, 'id'>[] }> {
@@ -135,7 +150,7 @@ async function readDay(date: DateKey): Promise<{ day: HealthDay; workouts: Omit<
       workouts.push({
         date,
         type,
-        title: s.title || TITLES[type],
+        title: s.title || sport(type).title,
         durationMin: Math.max(1, Math.round((sEnd.getTime() - sStart.getTime()) / 60000)),
         distanceKm,
         externalId: s.metadata?.id,

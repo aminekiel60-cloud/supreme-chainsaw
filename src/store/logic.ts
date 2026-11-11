@@ -3,16 +3,34 @@
  * These are plain functions (no UI), so they are easy to read and change.
  */
 import { addDays, startOfWeek, todayKey } from './dates';
-import type { Activity, AppState, DateKey, GoalType, Goals, Habit, HabitId, Profile, Workout } from './types';
+import type { Activity, AppState, DateKey, GoalType, Goals, Habit, HabitId, Profile, Workout, WorkoutType } from './types';
 
 export const HABITS: Habit[] = [
   { id: 'protein', title: 'Hit protein goal', kind: 'auto' },
   { id: 'calories', title: 'Stay within calorie goal', kind: 'auto' },
-  { id: 'workout', title: 'Train (gym, run or sport)', kind: 'auto' },
-  { id: 'steps', title: '10,000 steps', kind: 'manual' },
-  { id: 'water', title: 'Drink 3 L water', kind: 'manual' },
-  { id: 'sleep', title: 'Asleep by 23:00', kind: 'manual' },
+  { id: 'workout', title: 'Train or play sport', kind: 'auto' },
+  { id: 'steps', title: 'Steps goal', kind: 'manual' },
+  { id: 'water', title: 'Water goal', kind: 'auto' },
+  { id: 'sleep', title: 'Asleep on time', kind: 'manual' },
 ];
+
+/** Default habit targets; you can change them in Goals. */
+export const DEFAULT_HABIT_GOALS = { steps: 10000, waterMl: 2500, sleepByHour: 23 };
+
+/** The habit's label with your own targets, e.g. "8,000 steps" or "Drink 2.5 L water". */
+export function habitTitle(state: AppState, id: HabitId): string {
+  const g = state.goals;
+  switch (id) {
+    case 'steps':
+      return `${g.steps.toLocaleString('en-US')} steps`;
+    case 'water':
+      return `Drink ${(g.waterMl / 1000).toLocaleString('en-US')} L water`;
+    case 'sleep':
+      return `Asleep by ${String(g.sleepByHour % 24).padStart(2, '0')}:00`;
+    default:
+      return HABITS.find((h) => h.id === id)!.title;
+  }
+}
 
 /** A day counts towards your streak once this share of habits is done. */
 export const LOCKED_IN_THRESHOLD = 0.6;
@@ -51,9 +69,11 @@ export function habitDone(state: AppState, date: DateKey, id: HabitId): boolean 
     case 'workout':
       return workoutsOn(state, date).length > 0;
     case 'steps':
-      return (state.health[date]?.steps ?? 0) >= 10000 || manualDone(state, date, id);
+      return (state.health[date]?.steps ?? 0) >= state.goals.steps || manualDone(state, date, id);
+    case 'water':
+      return (state.water[date] ?? 0) >= state.goals.waterMl;
     case 'sleep':
-      return sleptBy23(state.health[date]?.sleepStart) || manualDone(state, date, id);
+      return sleptOnTime(state.health[date]?.sleepStart, state.goals.sleepByHour) || manualDone(state, date, id);
     default:
       return (state.checks[date] ?? []).includes(id);
   }
@@ -63,11 +83,13 @@ function manualDone(state: AppState, date: DateKey, id: HabitId) {
   return (state.checks[date] ?? []).includes(id);
 }
 
-/** True when you fell asleep between 18:00 and 23:00 (local time). */
-function sleptBy23(sleepStart?: string) {
+/** True when you fell asleep between 18:00 and your "asleep by" hour (local time). */
+function sleptOnTime(sleepStart: string | undefined, byHour: number) {
   if (!sleepStart) return false;
-  const h = new Date(sleepStart).getHours();
-  return h >= 18 && h < 23;
+  const d = new Date(sleepStart);
+  // Hours after midnight count as 24, 25, … so "asleep by 24:00" works too.
+  const h = d.getHours() < 12 ? d.getHours() + 24 : d.getHours();
+  return h >= 18 && h + d.getMinutes() / 60 <= byHour;
 }
 
 /** Share of habits done on a day, from 0 to 1. */
@@ -128,28 +150,50 @@ export function totalPoints(state: AppState): number {
   return total;
 }
 
-export type Achievement = { id: string; title: string; unlocked: boolean };
+/** Every sport you can log, with how its speed is shown. */
+export const SPORTS: {
+  id: WorkoutType;
+  label: string;
+  title: string;
+  icon: 'barbell' | 'walk' | 'footsteps' | 'bicycle' | 'water' | 'tennisball';
+  distance: boolean;
+}[] = [
+  { id: 'gym', label: 'Gym', title: 'Gym session', icon: 'barbell', distance: false },
+  { id: 'run', label: 'Run', title: 'Run', icon: 'walk', distance: true },
+  { id: 'walk', label: 'Walk', title: 'Walk', icon: 'footsteps', distance: true },
+  { id: 'cycle', label: 'Cycle', title: 'Ride', icon: 'bicycle', distance: true },
+  { id: 'swim', label: 'Swim', title: 'Swim', icon: 'water', distance: true },
+  { id: 'other', label: 'Other', title: 'Workout', icon: 'tennisball', distance: false },
+];
 
-export function achievements(state: AppState): Achievement[] {
-  const streak = currentStreak(state);
-  const km = state.workouts.reduce((t, w) => t + (w.distanceKm ?? 0), 0);
-  return [
-    { id: 'first-workout', title: 'First workout', unlocked: state.workouts.length >= 1 },
-    { id: 'first-meal', title: 'First meal logged', unlocked: state.food.length >= 1 },
-    { id: 'streak-3', title: '3-day streak', unlocked: streak >= 3 },
-    { id: 'streak-7', title: '7-day streak', unlocked: streak >= 7 },
-    { id: 'km-10', title: '10 km run total', unlocked: km >= 10 },
-    { id: 'workouts-10', title: '10 workouts', unlocked: state.workouts.length >= 10 },
-  ];
-}
+export const sport = (type: WorkoutType) => SPORTS.find((s) => s.id === type) ?? SPORTS[SPORTS.length - 1];
 
-/** Running pace as 'm:ss /km', or null without distance/time. */
+const mmss = (minutes: number) => {
+  const m = Math.floor(minutes);
+  const s = Math.round((minutes - m) * 60);
+  return s === 60 ? `${m + 1}:00` : `${m}:${String(s).padStart(2, '0')}`;
+};
+
+/**
+ * Speed in the unit each sport uses: pace per km for running and walking,
+ * km/h for cycling, pace per 100 m for swimming. Null without distance/time.
+ */
 export function pace(w: Workout): string | null {
   if (!w.distanceKm || !w.durationMin) return null;
-  const perKm = w.durationMin / w.distanceKm;
-  const min = Math.floor(perKm);
-  const sec = Math.round((perKm - min) * 60);
-  return `${min}:${String(sec).padStart(2, '0')} /km`;
+  switch (w.type) {
+    case 'cycle':
+      return `${(w.distanceKm / (w.durationMin / 60)).toFixed(1)} km/h`;
+    case 'swim':
+      return `${mmss(w.durationMin / (w.distanceKm * 10))} /100m`;
+    default:
+      return `${mmss(w.durationMin / w.distanceKm)} /km`;
+  }
+}
+
+/** Distance as the sport usually shows it (swims in metres). */
+export function formatDistance(w: Workout): string {
+  if (!w.distanceKm) return '';
+  return w.type === 'swim' ? `${Math.round(w.distanceKm * 1000)} m` : `${w.distanceKm} km`;
 }
 
 export function newId(): string {
@@ -175,7 +219,7 @@ export const GOAL_TYPES: { id: GoalType; label: string; detail: string }[] = [
  * Calories: Mifflin-St Jeor BMR × activity factor, adjusted for your goal.
  * Protein: 2.0 g per kg (2.2 when losing fat). Fat: 0.8 g per kg. Carbs: the rest.
  */
-export function calculateGoals(p: Profile): Goals {
+export function calculateGoals(p: Profile): Pick<Goals, 'kcal' | 'protein' | 'carbs' | 'fat'> {
   const bmr = 10 * p.weightKg + 6.25 * p.heightCm - 5 * p.age + (p.sex === 'male' ? 5 : -161);
   const factor = ACTIVITY_LEVELS.find((a) => a.id === p.activity)?.factor ?? 1.2;
   const adjust = p.goal === 'cut' ? -500 : p.goal === 'bulk' ? 300 : 0;

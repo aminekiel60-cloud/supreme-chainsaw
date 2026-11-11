@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Celebration } from '@/components/Celebration';
+import { KeyboardRoot } from '@/components/FormScroll';
 import { LogoIntro } from '@/components/LogoIntro';
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -35,7 +36,9 @@ export default function RootLayout() {
       <ThemeProvider value={theme}>
         <StatusBar style="light" />
         <AuthProvider>
-          <RootStack />
+          <KeyboardRoot>
+            <RootStack />
+          </KeyboardRoot>
         </AuthProvider>
       </ThemeProvider>
     </StoreProvider>
@@ -50,7 +53,7 @@ function RootStack() {
   const onboarded = state.profile !== null;
   useStreakReminders(state, ready && signedIn);
   useHealthSync(ready && signedIn && state.settings.healthConnect, dispatch);
-  const celebration = useCelebrations(state, ready && signedIn && onboarded);
+  const celebration = useCelebrations(state, ready && signedIn && onboarded, dispatch);
   const [showIntro, setShowIntro] = useState(true);
   const hideIntro = useCallback(() => setShowIntro(false), []);
 
@@ -85,10 +88,19 @@ function RootStack() {
           <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan barcode' }} />
           <Stack.Screen name="post/[id]" options={{ presentation: 'modal', title: 'Comments' }} />
           <Stack.Screen name="privacy" options={{ presentation: 'modal', title: 'Privacy policy' }} />
-          <Stack.Screen name="profile" options={{ presentation: 'modal', title: 'Profile & settings' }} />
+          <Stack.Screen name="settings" options={{ presentation: 'modal', title: 'Settings' }} />
+          <Stack.Screen name="food/[id]" options={{ presentation: 'modal', title: 'Edit food' }} />
+          <Stack.Screen name="goals" options={{ presentation: 'modal', title: 'Your goals' }} />
+          <Stack.Screen name="my-food" options={{ presentation: 'modal', title: 'Create food' }} />
+          <Stack.Screen name="friends" options={{ title: 'Friends' }} />
+          <Stack.Screen name="coach" options={{ title: 'Coach' }} />
+          <Stack.Screen name="coach/[id]" options={{ title: 'Coach' }} />
+          <Stack.Screen name="workout/[id]" options={{ title: 'Workout' }} />
+          <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
+          <Stack.Screen name="badges" options={{ title: 'Badges' }} />
         </Stack.Protected>
       </Stack>
-      {celebration.kind && <Celebration kind={celebration.kind} onDone={celebration.clear} />}
+      {celebration.kind && <Celebration kind={celebration.kind} level={celebration.level} onDone={celebration.clear} />}
       {showIntro && <LogoIntro onDone={hideIntro} />}
     </View>
   );

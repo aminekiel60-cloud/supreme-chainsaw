@@ -2,6 +2,7 @@
  * App-start animation, like the concept video: the white "L" slides in,
  * the lime lock drops onto it, a glow pulses, then everything fades into the app.
  */
+import { useAudioPlayer } from 'expo-audio';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -16,11 +17,16 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/theme';
+import { haptics } from '@/lib/haptics';
 import { LogoL, LogoLock } from './Logo';
 
 const SIZE = 140;
 
+// When the lock lands on the L (its drop starts at 250 ms and the spring settles ~270 ms later).
+const CLICK_AT_MS = 520;
+
 export function LogoIntro({ onDone }: { onDone: () => void }) {
+  const click = useAudioPlayer(require('@/assets/sounds/lock-click.wav'));
   const lX = useSharedValue(-120);
   const lOpacity = useSharedValue(0);
   const lockY = useSharedValue(-160);
@@ -36,13 +42,22 @@ export function LogoIntro({ onDone }: { onDone: () => void }) {
     lockY.value = withDelay(250, withSpring(0, { damping: 9, stiffness: 160 }));
     glow.value = withDelay(650, withSequence(withTiming(1, { duration: 250 }), withTiming(0.35, { duration: 400 })));
     tagline.value = withDelay(750, withTiming(1, { duration: 300 }));
+    const clickTimer = setTimeout(() => {
+      haptics.lock();
+      try {
+        click.play();
+      } catch {
+        // no sound available (e.g. muted web tab): the vibration is enough
+      }
+    }, CLICK_AT_MS);
     screen.value = withDelay(
       1500,
       withTiming(0, { duration: 350, easing: Easing.in(Easing.quad) }, (finished) => {
         if (finished) runOnJS(onDone)();
       }),
     );
-  }, [lX, lOpacity, lockY, lockOpacity, glow, tagline, screen, onDone]);
+    return () => clearTimeout(clickTimer);
+  }, [lX, lOpacity, lockY, lockOpacity, glow, tagline, screen, onDone, click]);
 
   const lStyle = useAnimatedStyle(() => ({ opacity: lOpacity.value, transform: [{ translateX: lX.value }] }));
   const lockStyle = useAnimatedStyle(() => ({ opacity: lockOpacity.value, transform: [{ translateY: lockY.value }] }));

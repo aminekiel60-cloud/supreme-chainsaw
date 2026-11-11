@@ -1,8 +1,9 @@
 /** SIGN IN — create an account or log in (email + password). */
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FormScroll } from '@/components/FormScroll';
 import { LogoMark } from '@/components/Logo';
 import { PrivacyPolicy } from '@/components/PrivacyPolicy';
 import { Button, Card, Field, styles as ui } from '@/components/ui';
@@ -57,8 +58,7 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView style={ui.safe}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={[ui.scroll, { paddingBottom: 48 }]} keyboardShouldPersistTaps="handled">
+      <FormScroll contentContainerStyle={ui.scroll}>
           <View style={{ alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xl }}>
             <LogoMark size={88} />
             <Text style={[Type.title, { color: Colors.text }]}>
@@ -117,8 +117,7 @@ export default function SignInScreen() {
               By creating an account you agree to our <Text style={{ textDecorationLine: 'underline' }}>privacy policy</Text>.
             </Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScroll>
       <Modal visible={showPolicy} animationType="slide" onRequestClose={() => setShowPolicy(false)}>
         <SafeAreaView style={ui.safe}>
           <Pressable onPress={() => setShowPolicy(false)} style={{ padding: 16 }}>

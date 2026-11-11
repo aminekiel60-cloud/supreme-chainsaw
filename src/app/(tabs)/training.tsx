@@ -1,83 +1,112 @@
-/** TRAINING — weekly summary plus your workout history. */
+/** TRAIN — this week's totals, per-sport breakdown and your workout history. */
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { CountUp, FadeInCard } from '@/components/motion';
 import { Button, Card, Screen, SectionTitle, Stat, styles as ui } from '@/components/ui';
-import { Colors, Spacing, Type } from '@/constants/theme';
+import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { prettyDate, startOfWeek, todayKey } from '@/store/dates';
-import { pace } from '@/store/logic';
+import { SPORTS, formatDistance, pace, sport } from '@/store/logic';
 import { useStore } from '@/store/store';
 
-const ICONS = { gym: 'barbell', run: 'walk', other: 'bicycle' } as const;
-
 export default function TrainingScreen() {
-  const { state, dispatch } = useStore();
+  const { state } = useStore();
   const weekStart = startOfWeek(todayKey());
   const thisWeek = state.workouts.filter((w) => w.date >= weekStart);
   const km = thisWeek.reduce((t, w) => t + (w.distanceKm ?? 0), 0);
   const minutes = thisWeek.reduce((t, w) => t + w.durationMin, 0);
-  const history = [...state.workouts].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const history = [...state.workouts].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  const perSport = SPORTS.map((sp) => ({ ...sp, count: thisWeek.filter((w) => w.type === sp.id).length })).filter((sp) => sp.count);
 
   return (
     <Screen>
-      <Text style={[Type.title, { color: Colors.text }]}>Training</Text>
+      <Text style={[Type.title, { color: Colors.text }]}>Train</Text>
 
-      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <Stat label="Workouts" value={String(thisWeek.length)} unit="this week" />
+      <FadeInCard index={0} style={{ flexDirection: 'row', gap: Spacing.sm }}>
+        <Card style={[ui.stat, { gap: 2 }]}>
+          <Text style={ui.statLabel}>Workouts</Text>
+          <CountUp value={thisWeek.length} style={ui.statValue} />
+          <Text style={ui.statUnit}>this week</Text>
+        </Card>
         <Stat label="Distance" value={km.toFixed(1)} unit="km" />
-        <Stat label="Time" value={String(minutes)} unit="min" />
-      </View>
+        <Stat
+          label="Time"
+          value={minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}` : String(minutes)}
+          unit={minutes >= 60 ? 'hours' : 'min'}
+        />
+      </FadeInCard>
 
-      <Button title="Log workout" icon="add" onPress={() => router.push('/log-workout')} />
+      {perSport.length > 0 && (
+        <FadeInCard index={1} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+          {perSport.map((sp) => (
+            <View key={sp.id} style={s.pill}>
+              <Ionicons name={sp.icon} size={14} color={Colors.lime} />
+              <Text style={{ color: Colors.text, fontWeight: '700', fontSize: 13 }}>
+                {sp.count}× {sp.label}
+              </Text>
+            </View>
+          ))}
+        </FadeInCard>
+      )}
+
+      <FadeInCard index={2}>
+        <Button title="Log workout" icon="add" onPress={() => router.push('/log-workout')} />
+      </FadeInCard>
 
       <SectionTitle>History</SectionTitle>
       {history.length === 0 && (
-        <Card>
-          <Text style={ui.muted}>No workouts yet. Your first one earns the “First workout” achievement.</Text>
+        <Card style={{ alignItems: 'center', gap: Spacing.sm, paddingVertical: 28 }}>
+          <Ionicons name="barbell" size={34} color={Colors.textFaint} />
+          <Text style={[ui.muted, { textAlign: 'center' }]}>No workouts yet. Your first one earns XP and the “Warming up” badge progress.</Text>
         </Card>
       )}
-      {history.map((w) => {
-        const sets = w.exercises?.reduce((t, e) => t + e.sets.length, 0) ?? 0;
-        const volume =
-          w.exercises?.reduce((t, e) => t + e.sets.reduce((s, x) => s + x.reps * x.weight, 0), 0) ?? 0;
+      {history.map((w, i) => {
+        const info = sport(w.type);
+        const p = pace(w);
         return (
-          <Card key={w.id} style={{ gap: Spacing.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  backgroundColor: Colors.limeSoft,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                <Ionicons name={ICONS[w.type]} size={20} color={Colors.lime} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[ui.text, { fontWeight: '700' }]}>{w.title}</Text>
-                <Text style={ui.muted}>{prettyDate(w.date)}</Text>
-              </View>
-              <Pressable hitSlop={10} onPress={() => dispatch({ type: 'removeWorkout', id: w.id })}>
-                <Ionicons name="trash-outline" size={18} color={Colors.textFaint} />
-              </Pressable>
-            </View>
-            <Text style={ui.muted}>
-              {w.durationMin} min
-              {w.distanceKm ? ` · ${w.distanceKm} km · ${pace(w)}` : ''}
-              {sets
-                ? ` · ${w.exercises!.length} exercise${w.exercises!.length === 1 ? '' : 's'} · ${sets} set${sets === 1 ? '' : 's'} · ${volume.toLocaleString('en-US')} kg volume`
-                : ''}
-            </Text>
-            {w.exercises?.map((e, i) => (
-              <Text key={i} style={{ color: Colors.text, fontSize: 13 }}>
-                {e.name}: {e.sets.map((x) => `${x.reps}×${x.weight}kg`).join(', ')}
-              </Text>
-            ))}
-          </Card>
+          <FadeInCard key={w.id} index={Math.min(i, 6) + 3}>
+            <Pressable onPress={() => router.push({ pathname: '/workout/[id]', params: { id: w.id } })}>
+              <Card style={{ flexDirection: 'row', gap: Spacing.md, alignItems: 'center' }}>
+                {w.photoUri ? (
+                  <Image source={{ uri: w.photoUri }} style={s.thumb} contentFit="cover" />
+                ) : (
+                  <View style={[s.thumb, s.iconThumb]}>
+                    <Ionicons name={info.icon} size={24} color={Colors.lime} />
+                  </View>
+                )}
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[ui.text, { fontWeight: '800' }]} numberOfLines={1}>
+                    {w.title}
+                  </Text>
+                  <Text style={ui.muted}>
+                    {prettyDate(w.date)} · {w.durationMin} min
+                    {w.distanceKm ? ` · ${formatDistance(w)}` : ''}
+                    {p ? ` · ${p}` : ''}
+                  </Text>
+                  {w.tagged?.length ? <Text style={[ui.muted, { color: Colors.lime }]}>with {w.tagged.map((t) => t.name).join(', ')}</Text> : null}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
+              </Card>
+            </Pressable>
+          </FadeInCard>
         );
       })}
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.limeSoft,
+  },
+  thumb: { width: 56, height: 56, borderRadius: Radius.sm },
+  iconThumb: { backgroundColor: Colors.cardRaised, alignItems: 'center', justifyContent: 'center' },
+});

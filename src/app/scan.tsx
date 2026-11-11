@@ -3,8 +3,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
+import { FormScroll } from '@/components/FormScroll';
 import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { portion, type Product } from '@/data/openFoodFacts';
@@ -20,7 +21,7 @@ type Status = 'scanning' | 'loading' | 'found' | 'notFound' | 'error';
 
 export default function ScanScreen() {
   const { dispatch } = useStore();
-  const params = useLocalSearchParams<{ meal?: Meal }>();
+  const params = useLocalSearchParams<{ meal?: Meal; date?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [status, setStatus] = useState<Status>('scanning');
   const [product, setProduct] = useState<Product | null>(null);
@@ -28,6 +29,7 @@ export default function ScanScreen() {
   const [meal, setMeal] = useState<Meal>(params.meal ?? 'Snacks');
   const [barcode, setBarcode] = useState('');
   const [adding, setAdding] = useState(false);
+  const [incompleteName, setIncompleteName] = useState<string | null>(null);
   const handled = useRef(false);
 
   const onScanned = async ({ data }: BarcodeScanningResult) => {
@@ -37,7 +39,12 @@ export default function ScanScreen() {
     setBarcode(data);
     try {
       const found = await findProduct(data);
-      if (found) {
+      if (found && !found.complete && cloudEnabled) {
+        // Known product, but without a nutrition table: ask for the label values once.
+        setIncompleteName(found.name);
+        setAdding(true);
+        setStatus('notFound');
+      } else if (found) {
         setProduct(found);
         setGrams(String(found.servingGrams ?? 100));
         setStatus('found');
@@ -53,6 +60,7 @@ export default function ScanScreen() {
     handled.current = false;
     setProduct(null);
     setAdding(false);
+    setIncompleteName(null);
     setStatus('scanning');
   };
 
@@ -92,6 +100,12 @@ export default function ScanScreen() {
     return (
       <AddProductForm
         barcode={barcode}
+        initialName={incompleteName ?? ''}
+        reason={
+          incompleteName
+            ? 'This product is in the database, but without nutrition values. Copy them from the label once and everyone on Locked in gets them.'
+            : undefined
+        }
         onCancel={() => setAdding(false)}
         onSaved={(p) => {
           setProduct(p);
@@ -140,7 +154,7 @@ export default function ScanScreen() {
   const n = portion(product, g);
 
   return (
-    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16 }}>
+    <FormScroll>
       <Card style={{ gap: Spacing.sm }}>
         <Text style={[ui.text, { fontSize: 18, fontWeight: '800' }]}>{product.name}</Text>
         <Text style={ui.muted}>
@@ -186,12 +200,12 @@ export default function ScanScreen() {
         icon="checkmark"
         disabled={g <= 0}
         onPress={() => {
-          dispatch({ type: 'addFood', entry: { name: `${product.name} (${g} g)`, meal, date: todayKey(), ...n } });
+          dispatch({ type: 'addFood', entry: { name: `${product.name} (${g} g)`, meal, date: params.date ?? todayKey(), ...n } });
           router.dismissTo('/nutrition');
         }}
       />
       <Button title="Scan another" icon="scan" variant="ghost" onPress={scanAgain} />
-    </ScrollView>
+    </FormScroll>
   );
 }
 
@@ -200,14 +214,18 @@ const num = (v: string) => Number(v.replace(',', '.'));
 /** Form to add a product that isn't in any database yet. Values per 100 g, as on the label. */
 function AddProductForm({
   barcode,
+  initialName,
+  reason,
   onCancel,
   onSaved,
 }: {
   barcode: string;
+  initialName: string;
+  reason?: string;
   onCancel: () => void;
   onSaved: (p: Product) => void;
 }) {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialName);
   const [kcal, setKcal] = useState('');
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
@@ -241,9 +259,10 @@ function AddProductForm({
   };
 
   return (
-    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
+    <FormScroll>
       <Card style={{ gap: Spacing.md }}>
-        <SectionTitle>Add product</SectionTitle>
+        <SectionTitle>{reason ? 'Complete this product' : 'Add product'}</SectionTitle>
+        {reason && <Text style={[ui.text, { color: Colors.lime }]}>{reason}</Text>}
         <Text style={ui.muted}>Copy the values from the nutrition label (per 100 g). Barcode {barcode}</Text>
         <Field label="Product name" placeholder="e.g. Delhaize Skyr Natuur" value={name} onChangeText={setName} />
         <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
@@ -263,7 +282,7 @@ function AddProductForm({
         <Button title="Save for everyone" icon="people" disabled={!valid} onPress={save} />
       )}
       <Button title="Cancel" variant="ghost" onPress={onCancel} />
-    </ScrollView>
+    </FormScroll>
   );
 }
 

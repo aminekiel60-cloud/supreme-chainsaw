@@ -1,8 +1,9 @@
 /** COMMENTS — read and write comments on a feed post. */
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Pressable, Text, TextInput, View } from 'react-native';
 
 import { Card, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
@@ -13,6 +14,8 @@ export default function CommentsScreen() {
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  // Android apps are edge-to-edge, so the input bar must be lifted above the keyboard explicitly.
+  const headerHeight = useHeaderHeight();
 
   const load = useCallback(() => {
     getComments(id).then(setComments).catch(() => setComments([]));
@@ -33,10 +36,7 @@ export default function CommentsScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior="padding" keyboardVerticalOffset={headerHeight}>
       <Stack.Screen options={{ title: title ?? 'Comments' }} />
       {comments === null ? (
         <ActivityIndicator color={Colors.lime} style={{ marginTop: 40 }} />

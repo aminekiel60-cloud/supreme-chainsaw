@@ -1,7 +1,8 @@
 /** ONBOARDING — shown on first launch to set up your profile and goals. */
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FormScroll } from '@/components/FormScroll';
 import { LogoMark } from '@/components/Logo';
 import { ProfileForm } from '@/components/ProfileForm';
 import { styles as ui } from '@/components/ui';
@@ -13,7 +14,7 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={ui.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={ui.scroll} keyboardShouldPersistTaps="handled">
+      <FormScroll contentContainerStyle={ui.scroll}>
         <View style={{ alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xl }}>
           <LogoMark size={88} />
           <Text style={[Type.title, { color: Colors.text, textAlign: 'center' }]}>
@@ -27,7 +28,7 @@ export default function OnboardingScreen() {
           </Text>
         </View>
         <ProfileForm submitLabel="Lock in" onSubmit={(profile) => dispatch({ type: 'setProfile', profile })} />
-      </ScrollView>
+      </FormScroll>
     </SafeAreaView>
   );
 }

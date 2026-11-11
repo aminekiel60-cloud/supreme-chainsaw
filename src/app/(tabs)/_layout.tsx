@@ -26,10 +26,10 @@ export default function TabLayout() {
         tabBarLabelStyle: { fontWeight: '600' },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: icon('home') }} />
-      <Tabs.Screen name="nutrition" options={{ title: 'Nutrition', tabBarIcon: icon('nutrition') }} />
-      <Tabs.Screen name="training" options={{ title: 'Training', tabBarIcon: icon('barbell') }} />
-      <Tabs.Screen name="calendar" options={{ title: 'Calendar', tabBarIcon: icon('calendar') }} />
-      <Tabs.Screen name="friends" options={{ title: 'Friends', tabBarIcon: icon('people') }} />
+      <Tabs.Screen name="nutrition" options={{ title: 'Food', tabBarIcon: icon('nutrition') }} />
+      <Tabs.Screen name="training" options={{ title: 'Train', tabBarIcon: icon('barbell') }} />
+      <Tabs.Screen name="feed" options={{ title: 'Feed', tabBarIcon: icon('people') }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('person-circle') }} />
     </Tabs>
   );
 }

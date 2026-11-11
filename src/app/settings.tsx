@@ -1,7 +1,8 @@
 /** PROFILE — edit your details and goals, reminders, and reset your data. */
 import { router } from 'expo-router';
-import { Alert, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, Switch, Text, View } from 'react-native';
 
+import { FormScroll } from '@/components/FormScroll';
 import { ProfileForm } from '@/components/ProfileForm';
 import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
@@ -52,7 +53,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 48 }}>
+    <FormScroll>
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Health Connect</SectionTitle>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -74,7 +75,11 @@ export default function ProfileScreen() {
           <Button title="Manage Health Connect permissions" icon="settings" variant="ghost" onPress={openHealthConnectSettings} />
         )}
         <Text style={ui.muted}>
-          Using Garmin? In the Garmin Connect app, allow it to share data with Health Connect.
+          Works with Samsung Health, Garmin Connect, Fitbit, Google Fit and more — they all share their data through Health Connect.
+        </Text>
+        <Text style={ui.muted}>
+          • Samsung Health: open Samsung Health → ⋮ → Settings → Health Connect, and allow sharing.{'\n'}• Garmin: in Garmin Connect →
+          More → Settings → Connected apps → Health Connect.
         </Text>
       </Card>
 
@@ -126,6 +131,6 @@ export default function ProfileScreen() {
       ) : (
         <Button title="Reset all data" icon="trash" variant="ghost" onPress={reset} />
       )}
-    </ScrollView>
+    </FormScroll>
   );
 }

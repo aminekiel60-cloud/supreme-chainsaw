@@ -1,89 +1,141 @@
-/** LOG WORKOUT — gym sessions (exercises, sets, reps, weight), runs and other sports. */
+/** LOG WORKOUT — gym (exercises, sets, reps, kg), run, walk, cycle, swim or any sport, with photo and friends. */
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Image } from 'expo-image';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
-import { Colors, Spacing } from '@/constants/theme';
+import { FormScroll } from '@/components/FormScroll';
+import { TagFriends } from '@/components/TagFriends';
+import { Button, Card, Field, SectionTitle, styles as ui } from '@/components/ui';
+import { Colors, Radius, Spacing } from '@/constants/theme';
+import { keepPhoto, pickPhoto } from '@/lib/photos';
+import { cloudEnabled } from '@/lib/supabase';
 import { todayKey } from '@/store/dates';
+import { SPORTS, newId, sport } from '@/store/logic';
 import { useStore } from '@/store/store';
 import type { WorkoutType } from '@/store/types';
 
 type DraftSet = { reps: string; weight: string };
 type DraftExercise = { name: string; sets: DraftSet[] };
 
-const TYPES: { id: WorkoutType; label: string; title: string }[] = [
-  { id: 'gym', label: 'Gym', title: 'Gym session' },
-  { id: 'run', label: 'Run', title: 'Run' },
-  { id: 'other', label: 'Other sport', title: 'Workout' },
-];
-
 const num = (v: string) => Number(v.replace(',', '.')) || 0;
 
+const PLACEHOLDERS: Record<WorkoutType, string> = {
+  gym: 'e.g. Push day',
+  run: 'e.g. Easy 5K',
+  walk: 'e.g. Evening walk',
+  cycle: 'e.g. Sunday ride',
+  swim: 'e.g. Pool laps',
+  other: 'e.g. Padel',
+};
+
 export default function LogWorkoutScreen() {
-  const { dispatch } = useStore();
-  const [type, setType] = useState<WorkoutType>('gym');
-  const [title, setTitle] = useState('');
-  const [duration, setDuration] = useState('');
-  const [distance, setDistance] = useState('');
-  const [exercises, setExercises] = useState<DraftExercise[]>([
-    { name: '', sets: [{ reps: '', weight: '' }] },
-  ]);
+  const { state, dispatch } = useStore();
+  // With ?id=… this screen edits an existing workout.
+  const { id: editId } = useLocalSearchParams<{ id?: string }>();
+  const existing = state.workouts.find((w) => w.id === editId);
+  const [type, setType] = useState<WorkoutType>(existing?.type ?? 'gym');
+  const [title, setTitle] = useState(existing?.title ?? '');
+  const [duration, setDuration] = useState(existing ? String(existing.durationMin) : '');
+  const [distance, setDistance] = useState(
+    existing?.distanceKm ? String(existing.type === 'swim' ? Math.round(existing.distanceKm * 1000) : existing.distanceKm) : '',
+  );
+  const [photo, setPhoto] = useState<string | null>(existing?.photoUri ?? null);
+  const [tagged, setTagged] = useState<{ id: string; name: string }[]>(existing?.tagged ?? []);
+  const [exercises, setExercises] = useState<DraftExercise[]>(
+    existing?.exercises?.length
+      ? existing.exercises.map((e) => ({ name: e.name, sets: e.sets.map((x) => ({ reps: String(x.reps), weight: String(x.weight) })) }))
+      : [{ name: '', sets: [{ reps: '', weight: '' }] }],
+  );
+  const info = sport(type);
+  const swim = type === 'swim';
+
+  /** Your sets for this exercise the last time you did it (case-insensitive name match). */
+  const lastTime = (name: string) => {
+    const key = name.trim().toLowerCase();
+    if (!key) return null;
+    const previous = [...state.workouts]
+      .filter((w) => w.id !== existing?.id && w.exercises?.some((e) => e.name.toLowerCase() === key))
+      .sort((x, y) => (x.date < y.date ? 1 : -1))[0];
+    return previous?.exercises?.find((e) => e.name.toLowerCase() === key)?.sets ?? null;
+  };
 
   const updateExercise = (i: number, change: Partial<DraftExercise>) =>
     setExercises((list) => list.map((e, idx) => (idx === i ? { ...e, ...change } : e)));
 
   const updateSet = (i: number, j: number, change: Partial<DraftSet>) =>
-    updateExercise(i, {
-      sets: exercises[i].sets.map((s, idx) => (idx === j ? { ...s, ...change } : s)),
-    });
+    updateExercise(i, { sets: exercises[i].sets.map((s, idx) => (idx === j ? { ...s, ...change } : s)) });
 
-  const save = () => {
-    const fallback = TYPES.find((t) => t.id === type)!.title;
-    dispatch({
-      type: 'addWorkout',
-      workout: {
-        date: todayKey(),
-        type,
-        title: title.trim() || fallback,
-        durationMin: num(duration),
-        distanceKm: type === 'gym' ? undefined : num(distance) || undefined,
-        exercises:
-          type === 'gym'
-            ? exercises
-                .filter((e) => e.name.trim())
-                .map((e) => ({
-                  name: e.name.trim(),
-                  sets: e.sets
-                    .filter((s) => num(s.reps) > 0)
-                    .map((s) => ({ reps: num(s.reps), weight: num(s.weight) })),
-                }))
-            : undefined,
-      },
-    });
-    router.back();
+  const addPhoto = () => {
+    const run = async (source: 'camera' | 'library') => {
+      const uri = await pickPhoto(source);
+      if (uri) setPhoto(uri);
+    };
+    Alert.alert('Workout photo', undefined, [
+      { text: 'Take photo', onPress: () => run('camera') },
+      { text: 'Choose from gallery', onPress: () => run('library') },
+      ...(photo ? [{ text: 'Remove photo', style: 'destructive' as const, onPress: () => setPhoto(null) }] : []),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  };
+
+  const save = async () => {
+    const id = existing?.id ?? newId();
+    const kept = photo ? (photo === existing?.photoUri ? photo : await keepPhoto(photo, `workout-${id}-${Date.now()}`)) : undefined;
+    const d = num(distance);
+    const workout = {
+      id,
+      date: existing?.date ?? todayKey(),
+      type,
+      title: title.trim() || info.title,
+      durationMin: num(duration),
+      distanceKm: info.distance && d ? (swim ? d / 1000 : d) : undefined,
+      photoUri: kept,
+      tagged: tagged.length ? tagged : undefined,
+      exercises:
+        type === 'gym'
+          ? exercises
+              .filter((e) => e.name.trim())
+              .map((e) => ({
+                name: e.name.trim(),
+                sets: e.sets.filter((s) => num(s.reps) > 0).map((s) => ({ reps: num(s.reps), weight: num(s.weight) })),
+              }))
+          : undefined,
+    };
+    if (existing) {
+      dispatch({ type: 'updateWorkout', id, changes: workout });
+      router.back();
+      return;
+    }
+    dispatch({ type: 'addWorkout', workout });
+    // Straight to the summary, so you can share it.
+    router.replace({ pathname: '/workout/[id]', params: { id } });
   };
 
   return (
-    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16 }}>
-      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        {TYPES.map((t) => (
-          <Chip key={t.id} label={t.label} active={type === t.id} onPress={() => setType(t.id)} />
+    <FormScroll>
+      <View style={s.sports}>
+        {SPORTS.map((sp) => (
+          <Pressable key={sp.id} onPress={() => setType(sp.id)} style={[s.sport, type === sp.id && s.sportActive]}>
+            <Ionicons name={sp.icon} size={22} color={type === sp.id ? Colors.background : Colors.lime} />
+            <Text style={[s.sportLabel, type === sp.id && { color: Colors.background }]}>{sp.label}</Text>
+          </Pressable>
         ))}
       </View>
 
       <Card style={{ gap: Spacing.md }}>
-        <Field
-          label="Title"
-          placeholder={type === 'gym' ? 'e.g. Push day' : type === 'run' ? 'e.g. Easy 5K' : 'e.g. Padel'}
-          value={title}
-          onChangeText={setTitle}
-        />
+        <Field label="Title" placeholder={PLACEHOLDERS[type]} value={title} onChangeText={setTitle} />
         <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
           <Field label="Duration (min)" keyboardType="numeric" placeholder="0" value={duration} onChangeText={setDuration} />
-          {type !== 'gym' && (
-            <Field label="Distance (km)" keyboardType="decimal-pad" placeholder="0" value={distance} onChangeText={setDistance} />
+          {info.distance && (
+            <Field
+              label={swim ? 'Distance (m)' : 'Distance (km)'}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              value={distance}
+              onChangeText={setDistance}
+            />
           )}
         </View>
       </Card>
@@ -99,13 +151,29 @@ export default function LogWorkoutScreen() {
                 value={ex.name}
                 onChangeText={(name) => updateExercise(i, { name })}
               />
+              {lastTime(ex.name) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <Text style={[ui.muted, { color: Colors.lime, flex: 1 }]}>
+                    Last time: {lastTime(ex.name)!.map((x) => `${x.reps}×${x.weight}kg`).join(', ')}
+                  </Text>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() =>
+                      updateExercise(i, { sets: lastTime(ex.name)!.map((x) => ({ reps: String(x.reps), weight: String(x.weight) })) })
+                    }>
+                    <Text style={{ color: Colors.lime, fontWeight: '800' }}>Use last time</Text>
+                  </Pressable>
+                </View>
+              )}
               {ex.sets.map((set, j) => (
                 <View key={j} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                  <Text numberOfLines={1} style={[ui.muted, { width: 48 }]}>Set {j + 1}</Text>
+                  <Text numberOfLines={1} style={[ui.muted, { width: 48 }]}>
+                    Set {j + 1}
+                  </Text>
                   <TextInput
                     style={[ui.input, { flex: 1, minWidth: 0 }]}
                     keyboardType="numeric"
-                    placeholder="reps"
+                    placeholder={String(lastTime(ex.name)?.[j]?.reps ?? 'reps')}
                     placeholderTextColor={Colors.textFaint}
                     value={set.reps}
                     onChangeText={(reps) => updateSet(i, j, { reps })}
@@ -114,7 +182,7 @@ export default function LogWorkoutScreen() {
                   <TextInput
                     style={[ui.input, { flex: 1, minWidth: 0 }]}
                     keyboardType="decimal-pad"
-                    placeholder="kg"
+                    placeholder={lastTime(ex.name)?.[j] ? String(lastTime(ex.name)![j].weight) : 'kg'}
                     placeholderTextColor={Colors.textFaint}
                     value={set.weight}
                     onChangeText={(weight) => updateSet(i, j, { weight })}
@@ -123,10 +191,7 @@ export default function LogWorkoutScreen() {
               ))}
               <Pressable
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 }}
-                onPress={() => {
-                  const last = ex.sets[ex.sets.length - 1];
-                  updateExercise(i, { sets: [...ex.sets, { ...last }] });
-                }}>
+                onPress={() => updateExercise(i, { sets: [...ex.sets, { ...ex.sets[ex.sets.length - 1] }] })}>
                 <Ionicons name="add" size={18} color={Colors.lime} />
                 <Text style={{ color: Colors.lime, fontWeight: '700' }}>Add set</Text>
               </Pressable>
@@ -141,7 +206,54 @@ export default function LogWorkoutScreen() {
         </>
       )}
 
-      <Button title="Save workout" icon="checkmark" disabled={!num(duration)} onPress={save} />
-    </ScrollView>
+      <Card style={{ gap: Spacing.md }}>
+        <SectionTitle>Photo</SectionTitle>
+        <Pressable onPress={addPhoto} style={s.photo}>
+          {photo ? (
+            <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <View style={{ alignItems: 'center', gap: 6 }}>
+              <Ionicons name="camera" size={28} color={Colors.lime} />
+              <Text style={ui.muted}>Add a photo {cloudEnabled ? '— friends see it in the feed' : ''}</Text>
+            </View>
+          )}
+        </Pressable>
+      </Card>
+
+      {cloudEnabled && (
+        <Card style={{ gap: Spacing.md }}>
+          <SectionTitle>Trained with</SectionTitle>
+          <TagFriends value={tagged} onChange={setTagged} />
+        </Card>
+      )}
+
+      <Button title={existing ? 'Save changes' : 'Save workout'} icon="checkmark" disabled={!num(duration)} onPress={save} />
+    </FormScroll>
   );
 }
+
+const s = StyleSheet.create({
+  sports: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  sport: {
+    width: '31.8%',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
+  sportActive: { backgroundColor: Colors.lime, borderColor: Colors.lime },
+  sportLabel: { color: Colors.text, fontWeight: '700', fontSize: 13 },
+  photo: {
+    height: 170,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.limeBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+});

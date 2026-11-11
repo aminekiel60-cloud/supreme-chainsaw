@@ -31,6 +31,8 @@
         "android.permission.health.READ_DISTANCE"
       ],
       "blockedPermissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
@@ -78,7 +80,16 @@
         }
       ],
       "react-native-health-connect",
-      "expo-image"
+      "expo-image",
+      "expo-sharing",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -10,26 +10,22 @@ This repository holds **stage 1 (MVP)**: a working iPhone and Android app with a
 
 ---
 
-## What works right now
+## What's in the app
 
 | Tab | What you can do |
 |---|---|
-| **Home** | Today's calorie ring, macros, daily habits %, streak, weekly points, today's training and achievements |
-| **Nutrition** | Add food by hand or from a quick-add list, grouped into Breakfast, Lunch, Dinner and Snacks. Calories left and progress bars for protein, carbs and fat |
-| **Training** | Log gym sessions (exercises, sets, reps, kg), runs (distance and time, with automatic pace) and other sports. Weekly totals and history |
-| **Calendar** | Month view: a brighter day means more habits done, an outline marks a "locked-in" day, a dot marks a workout. Tap any day to see or edit it |
-| **Friends** | Weekly ranking (you against demo friends), challenges, a feed with likes, and an "Invite friends" share button |
+| **Home** | Week strip, streak and weekly points, calorie ring and macros, water bottles, daily habits with your own targets, today's training, Recover card (Health Connect) and your level |
+| **Food** | Food diary per day (switch days with the arrows), meals with a suggested budget, "+" per meal, tap an entry to edit it, copy yesterday's meal, barcode scanner, AI photo, your own foods |
+| **Train** | Gym (sets × reps × kg, with "last time"), run, walk, cycle, swim and other sports, with photo and friends tagged. Weekly totals per sport, and a summary with a shareable Strava-style card |
+| **Feed** | Your friends' activity with photos, likes and comments, the weekly ranking, and challenges. Add friends by name or invite code. Coach |
+| **Profile** | Profile picture, level and XP, stats, badges, calendar, goals, friends, coach and settings |
 
-**How habits and points work** (all in `src/store/logic.ts`, easy to change):
+**How progress works** (in `src/store/logic.ts` and `src/store/progress.ts`):
 
-- **Auto habits** tick themselves: protein goal reached, calories logged and within goal, and a workout logged.
-- **Manual habits** are ticked by tapping: 10,000 steps, 3 L water, asleep by 23:00.
-- A day is **locked in** at ≥ 60% of habits done. Consecutive locked-in days form your **streak**.
-- **Points:** 10 per habit, 50 per workout, and +25 for a locked-in day.
-
-**Not yet** (placeholders show "SOON" or "DEMO"): AI food photo, barcode scanner, Garmin sync, real friends and accounts. Each one is a later stage in the roadmap.
-
----
+- **Habits:** protein, calories, training and water tick themselves. Steps and sleep come from Health Connect, or you tick them by hand.
+- A day is **locked in** at ≥ 60% of habits done; consecutive locked-in days form your **streak**.
+- **XP:** 10 per habit, 50 per workout, +25 for a locked-in day, +50 for a perfect day and +250 per challenge won. Levels go from Rookie to Legend.
+- **Badges** come in bronze, silver, gold and legend tiers, for streaks, workouts, distance, perfect days, water, challenges and levels.
 
 ## Run it on your own phone (no coding experience needed)
 
@@ -62,39 +58,33 @@ Every time you save a change in the code, the app on your phone updates within a
 
 ```
 src/
-  app/                      ← every file here is a SCREEN
-    _layout.tsx             ← app shell: dark theme + saved data
-    (tabs)/_layout.tsx      ← the bottom tab bar (Home, Nutrition, …)
-    (tabs)/index.tsx        ← Home dashboard
-    (tabs)/nutrition.tsx    ← Nutrition tab
-    (tabs)/training.tsx     ← Training tab
-    (tabs)/calendar.tsx     ← Calendar tab
-    (tabs)/friends.tsx      ← Friends tab
-    add-food.tsx            ← "Add food" pop-up screen
-    log-workout.tsx         ← "Log workout" pop-up screen
-  components/               ← reusable building blocks
-    Logo.tsx                ← the Locked in logo (drawn in code)
-    ProgressRing.tsx        ← the animated calorie ring
-    HabitList.tsx           ← the daily habit checklist
-    ui.tsx                  ← cards, buttons, inputs, progress bars
-  constants/theme.ts        ← ALL colors (Neon Lime #A3FF3F, Midnight Black #111111)
-  store/
-    store.tsx               ← saves and loads your data on the phone
-    logic.ts                ← rules for habits, streaks, points and achievements
-    types.ts                ← what a food entry, workout, etc. looks like
-    dates.ts                ← date helpers
-  data/
-    foods.ts                ← quick-add food list
-    friends.ts              ← demo friends, feed and challenges
-assets/images/              ← app icon, splash screen, favicon
-app.json                    ← app name, icon and IDs for the app stores
+  app/                       ← every file here is a SCREEN
+    _layout.tsx              ← app shell: login → onboarding → app, intro, celebrations
+    (tabs)/index.tsx         ← Home
+    (tabs)/nutrition.tsx     ← Food diary
+    (tabs)/training.tsx      ← Train
+    (tabs)/feed.tsx          ← Feed (activity, ranking, challenges)
+    (tabs)/profile.tsx       ← Profile
+    add-food.tsx, scan.tsx, photo.tsx, my-food.tsx, food/[id].tsx   ← food screens
+    log-workout.tsx, workout/[id].tsx                                ← workout screens
+    friends.tsx, coach.tsx, coach/[id].tsx, post/[id].tsx            ← social screens
+    goals.tsx, settings.tsx, calendar.tsx, badges.tsx                ← you
+  components/                ← building blocks (cards, water bottles, share card, …)
+  constants/theme.ts         ← ALL colors (Neon Lime #A3FF3F, Midnight Black #111111)
+  lib/                       ← Supabase, social, photos, Health Connect, reminders, haptics
+  store/                     ← your data: types, rules (logic.ts), XP & badges (progress.ts)
+supabase/
+  migrations/                ← database tables and privacy rules
+  functions/                 ← server functions (AI food photo, delete account)
+  tests/                     ← privacy tests for the database rules
 ```
 
 ### Easy first changes to try
 
 - **Change the brand color:** edit `lime` in `src/constants/theme.ts`.
-- **Change your calorie or macro goals:** edit `goals` in `src/store/store.tsx` (`initialState`).
-- **Add a habit:** add a line to `HABITS` in `src/store/logic.ts`, and its id to `HabitId` in `src/store/types.ts`.
+- **Change the default habit targets:** edit `DEFAULT_HABIT_GOALS` in `src/store/logic.ts` (everyone can also change their own in Profile → Your goals).
+- **Add a badge:** add a line to `badges()` in `src/store/progress.ts`.
+- **Add a habit:** add a line to `HABITS` in `src/store/logic.ts`, its id to `HabitId` in `src/store/types.ts`, and a rule in `habitDone()`.
 - **Add quick-add foods:** add lines to `src/data/foods.ts`.
 
 ## Built with

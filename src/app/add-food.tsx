@@ -1,9 +1,10 @@
 /** ADD FOOD — manual entry or quick-add, plus placeholders for AI photo and barcode. */
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
+import { FormScroll } from '@/components/FormScroll';
 import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { QUICK_FOODS, type QuickFood } from '@/data/foods';
@@ -25,8 +26,11 @@ const num = (v: string) => Number(v.replace(',', '.')) || 0;
 
 export default function AddFoodScreen() {
   const { state, dispatch } = useStore();
+  // Opened from a meal's "+" or another day in the diary.
+  const params = useLocalSearchParams<{ meal?: Meal; date?: string }>();
+  const date = params.date ?? todayKey();
   const frequent = frequentFoods(state.food);
-  const [meal, setMeal] = useState<Meal>(defaultMeal);
+  const [meal, setMeal] = useState<Meal>(params.meal ?? defaultMeal());
   const [name, setName] = useState('');
   const [kcal, setKcal] = useState('');
   const [protein, setProtein] = useState('');
@@ -34,7 +38,7 @@ export default function AddFoodScreen() {
   const [fat, setFat] = useState('');
 
   const add = (food: QuickFood) => {
-    dispatch({ type: 'addFood', entry: { ...food, meal, date: todayKey() } });
+    dispatch({ type: 'addFood', entry: { ...food, meal, date } });
     router.back();
   };
 
@@ -42,7 +46,7 @@ export default function AddFoodScreen() {
     add({ name: name.trim(), kcal: num(kcal), protein: num(protein), carbs: num(carbs), fat: num(fat) });
 
   return (
-    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16 }}>
+    <FormScroll>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
         {MEALS.map((m) => (
           <Chip key={m} label={m} active={meal === m} onPress={() => setMeal(m)} />
@@ -50,13 +54,13 @@ export default function AddFoodScreen() {
       </View>
 
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/photo', params: { meal } })}>
+        <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/photo', params: { meal, date } })}>
           <Card highlight style={{ alignItems: 'center', gap: 6 }}>
             <Ionicons name="camera" size={26} color={Colors.lime} />
             <Text style={[ui.text, { fontWeight: '700' }]}>AI photo</Text>
           </Card>
         </Pressable>
-        <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/scan', params: { meal } })}>
+        <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/scan', params: { meal, date } })}>
           <Card highlight style={{ alignItems: 'center', gap: 6 }}>
             <Ionicons name="barcode" size={26} color={Colors.lime} />
             <Text style={[ui.text, { fontWeight: '700' }]}>Scan barcode</Text>
@@ -78,6 +82,37 @@ export default function AddFoodScreen() {
         <Button title={`Add to ${meal}`} icon="checkmark" disabled={!name.trim() || !kcal} onPress={addManual} />
       </Card>
 
+      <SectionTitle
+        action={
+          <Pressable onPress={() => router.push('/my-food')} hitSlop={8}>
+            <Text style={{ color: Colors.lime, fontWeight: '700' }}>+ Create food</Text>
+          </Pressable>
+        }>
+        My foods
+      </SectionTitle>
+      {state.myFoods.length === 0 && (
+        <Pressable onPress={() => router.push('/my-food')}>
+          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+            <Ionicons name="bookmark-outline" size={22} color={Colors.lime} />
+            <Text style={[ui.muted, { flex: 1 }]}>Save your own recipes and favourite meals to add them in one tap. Long-press one to edit it.</Text>
+          </Card>
+        </Pressable>
+      )}
+      {state.myFoods.map((f) => (
+        <FoodRow
+          key={f.id}
+          food={{ ...f, name: `${f.name} (${f.portion})` }}
+          onPress={() => add({ name: `${f.name} (${f.portion})`, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat })}
+          onLongPress={() =>
+            Alert.alert(f.name, f.portion, [
+              { text: 'Edit', onPress: () => router.push({ pathname: '/my-food', params: { id: f.id } }) },
+              { text: 'Delete', style: 'destructive', onPress: () => dispatch({ type: 'removeMyFood', id: f.id }) },
+              { text: 'Cancel', style: 'cancel' },
+            ])
+          }
+        />
+      ))}
+
       {frequent.length > 0 && <SectionTitle>Your frequent foods</SectionTitle>}
       {frequent.map((f) => (
         <FoodRow key={`fav-${f.name}`} food={f} onPress={() => add(f)} />
@@ -87,7 +122,7 @@ export default function AddFoodScreen() {
       {QUICK_FOODS.map((f) => (
         <FoodRow key={f.name} food={f} onPress={() => add(f)} />
       ))}
-    </ScrollView>
+    </FormScroll>
   );
 }
 
@@ -108,9 +143,9 @@ function frequentFoods(food: FoodEntry[]): QuickFood[] {
     .map((c) => c.food);
 }
 
-function FoodRow({ food, onPress }: { food: QuickFood; onPress: () => void }) {
+function FoodRow({ food, onPress, onLongPress }: { food: QuickFood; onPress: () => void; onLongPress?: () => void }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={onPress} onLongPress={onLongPress}>
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: 14 }}>
         <View style={{ flex: 1 }}>
           <Text style={ui.text}>{food.name}</Text>

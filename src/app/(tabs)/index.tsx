@@ -3,21 +3,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Avatar } from '@/components/Avatar';
 import { HabitList } from '@/components/HabitList';
+import { LevelCard } from '@/components/LevelCard';
 import { CountUp, FadeInCard } from '@/components/motion';
 import { ProgressRing } from '@/components/ProgressRing';
+import { WaterCard } from '@/components/WaterCard';
+import { WeekStrip } from '@/components/WeekStrip';
 import { Badge, Button, Card, ProgressBar, Screen, SectionTitle, Stat, styles as ui } from '@/components/ui';
 import { Colors, Spacing, Type } from '@/constants/theme';
 import { connectHealth } from '@/lib/health';
 import { prettyDate, todayKey } from '@/store/dates';
 import {
-  achievements,
   currentStreak,
   dayProgress,
   dayTotals,
   weekPoints,
   workoutsOn,
 } from '@/store/logic';
+import { levelInfo, totalXp } from '@/store/progress';
 import { useStore } from '@/store/store';
 
 export default function HomeScreen() {
@@ -27,23 +31,27 @@ export default function HomeScreen() {
   const progress = dayProgress(state, today);
   const streak = currentStreak(state);
   const todaysWorkouts = workoutsOn(state, today);
-  const unlocked = achievements(state).filter((a) => a.unlocked);
 
   return (
     <Screen
       right={
-        <Pressable onPress={() => router.push('/profile')} style={s.avatar} hitSlop={8}>
-          <Text style={{ color: Colors.background, fontWeight: '800' }}>
-            {(state.profile?.name ?? '?').slice(0, 1).toUpperCase()}
-          </Text>
+        <Pressable onPress={() => router.navigate('/profile')} hitSlop={8}>
+          <Avatar name={state.profile?.name ?? '?'} size={38} level={levelInfo(totalXp(state)).level} highlight />
         </Pressable>
       }>
       <View>
         <Text style={[Type.title, { color: Colors.text }]}>Hey {state.profile?.name ?? 'there'} 👋</Text>
         <Text style={ui.muted}>{prettyDate(today)}</Text>
       </View>
+
+      <FadeInCard index={0}>
+        <Card style={{ paddingVertical: 12 }}>
+          <WeekStrip />
+        </Card>
+      </FadeInCard>
+
       {/* Streak + points */}
-      <FadeInCard index={0} style={{ flexDirection: 'row', gap: Spacing.sm }}>
+      <FadeInCard index={1} style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <Card highlight style={[ui.stat, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
           <Ionicons name="flame" size={26} color={Colors.lime} />
           <View>
@@ -63,7 +71,7 @@ export default function HomeScreen() {
       </FadeInCard>
 
       {/* Fuel */}
-      <FadeInCard index={1}>
+      <FadeInCard index={2}>
         <Pressable onPress={() => router.navigate('/nutrition')}>
           <Card style={{ alignItems: 'center', gap: Spacing.lg }}>
             <View style={{ alignSelf: 'stretch' }}>
@@ -82,8 +90,13 @@ export default function HomeScreen() {
         </Pressable>
       </FadeInCard>
 
+      {/* Water */}
+      <FadeInCard index={3}>
+        <WaterCard />
+      </FadeInCard>
+
       {/* Build habits */}
-      <FadeInCard index={2}>
+      <FadeInCard index={4}>
         <Card style={{ gap: Spacing.md }}>
           <View style={s.rowBetween}>
             <Text style={[Type.heading, { color: Colors.text }]}>Daily habits</Text>
@@ -95,7 +108,7 @@ export default function HomeScreen() {
       </FadeInCard>
 
       {/* Train */}
-      <FadeInCard index={3}>
+      <FadeInCard index={5}>
         <Card style={{ gap: Spacing.md }}>
           <SectionTitle action={<Badge text="TRAIN" />}>Today&apos;s training</SectionTitle>
           {todaysWorkouts.length === 0 ? (
@@ -118,31 +131,15 @@ export default function HomeScreen() {
       </FadeInCard>
 
       {/* Recover (Health Connect) */}
-      <FadeInCard index={4}>
+      <FadeInCard index={6}>
         <RecoverCard />
       </FadeInCard>
 
-      {/* Achievements */}
-      <FadeInCard index={5}>
-        <Card style={{ gap: Spacing.md }}>
-          <SectionTitle action={<Text style={ui.muted}>{unlocked.length} / {achievements(state).length}</Text>}>
-            Achievements
-          </SectionTitle>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
-            {achievements(state).map((a) => (
-              <View key={a.id} style={[s.achievement, a.unlocked && s.achievementOn]}>
-                <Ionicons
-                  name={a.unlocked ? 'trophy' : 'lock-closed'}
-                  size={14}
-                  color={a.unlocked ? Colors.lime : Colors.textFaint}
-                />
-                <Text style={{ color: a.unlocked ? Colors.text : Colors.textFaint, fontSize: 12, fontWeight: '600' }}>
-                  {a.title}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Card>
+      {/* Level */}
+      <FadeInCard index={7}>
+        <Pressable onPress={() => router.navigate('/profile')}>
+          <LevelCard compact />
+        </Pressable>
       </FadeInCard>
     </Screen>
   );
@@ -177,12 +174,12 @@ function RecoverCard() {
       </View>
       {connected ? (
         <Text style={ui.muted}>
-          Synced from Health Connect. 10,000 steps and sleep before 23:00 tick your habits automatically.
+          Synced from Health Connect. Your steps and sleep goals tick themselves.
         </Text>
       ) : (
         <>
           <Text style={ui.muted}>
-            Connect Health Connect to sync steps, sleep, heart rate and workouts from Garmin or any other watch.
+            Sync steps, sleep, heart rate and workouts from Samsung Health, Garmin, Fitbit or any other watch via Health Connect.
           </Text>
           <Button title="Connect Health Connect" icon="heart" variant="ghost" onPress={connect} />
         </>
@@ -205,25 +202,6 @@ function Macro({ label, value, goal, color }: { label: string; value: number; go
 }
 
 const s = StyleSheet.create({
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.lime,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   empty: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  achievement: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  achievementOn: { borderColor: Colors.limeBorder, backgroundColor: Colors.limeSoft },
 });

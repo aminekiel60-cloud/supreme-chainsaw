@@ -22,6 +22,7 @@ const toProduct = (r: Row): Product => ({
   per100: { kcal: Number(r.kcal), protein: Number(r.protein), carbs: Number(r.carbs), fat: Number(r.fat) },
   servingGrams: r.serving_grams ? Number(r.serving_grams) : null,
   source: 'community',
+  complete: true,
 });
 
 /** Look a barcode up: the Locked in community first, then Open Food Facts. */
@@ -38,7 +39,7 @@ export async function findProduct(barcode: string): Promise<Product | null> {
 }
 
 /** Share a missing product with all Locked in users. */
-export async function addCommunityFood(p: Omit<Product, 'source'>): Promise<Product> {
+export async function addCommunityFood(p: Omit<Product, 'source' | 'complete'>): Promise<Product> {
   const { data: user } = await db().auth.getUser();
   const { error } = await db().from('community_foods').insert({
     barcode: p.barcode,
@@ -55,7 +56,7 @@ export async function addCommunityFood(p: Omit<Product, 'source'>): Promise<Prod
     if (error.code === '23514') throw new Error('Please check the values: per 100 g, max 950 kcal and 100 g per macro.');
     throw new Error('Could not save the product. Check your connection and try again.');
   }
-  return { ...p, source: 'community' };
+  return { ...p, source: 'community', complete: true };
 }
 
 /** Report a community product as wrong. */

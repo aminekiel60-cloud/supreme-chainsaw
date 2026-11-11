@@ -4,8 +4,9 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
 
+import { FormScroll } from '@/components/FormScroll';
 import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { cloudEnabled, db } from '@/lib/supabase';
@@ -29,7 +30,7 @@ function scaled(r: Row) {
 
 export default function PhotoScreen() {
   const { dispatch } = useStore();
-  const params = useLocalSearchParams<{ meal?: Meal }>();
+  const params = useLocalSearchParams<{ meal?: Meal; date?: string }>();
   const [meal, setMeal] = useState<Meal>(params.meal ?? 'Lunch');
   const [uri, setUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -76,7 +77,7 @@ export default function PhotoScreen() {
 
   const addAll = () => {
     for (const r of rows.filter((x) => x.include)) {
-      dispatch({ type: 'addFood', entry: { name: `${r.name} (${r.gramsText} g)`, meal, date: todayKey(), ...scaled(r) } });
+      dispatch({ type: 'addFood', entry: { name: `${r.name} (${r.gramsText} g)`, meal, date: params.date ?? todayKey(), ...scaled(r) } });
     }
     router.dismissTo('/nutrition');
   };
@@ -93,7 +94,7 @@ export default function PhotoScreen() {
   const total = included.reduce((t, n) => t + n.kcal, 0);
 
   return (
-    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 48 }}>
+    <FormScroll>
       {uri ? (
         <Image source={{ uri }} style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: 20 }} />
       ) : (
@@ -166,6 +167,6 @@ export default function PhotoScreen() {
           <Text style={[ui.muted, { textAlign: 'center' }]}>{result.remainingToday} AI photos left today</Text>
         </>
       )}
-    </ScrollView>
+    </FormScroll>
   );
 }

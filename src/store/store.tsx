@@ -9,17 +9,20 @@ import { createContext, useCallback, useContext, useEffect, useReducer, useState
 
 import { haptics } from '@/lib/haptics';
 
-import { calculateGoals, newId } from './logic';
-import type { AppState, DateKey, FoodEntry, Goals, HabitId, HealthDay, Profile, Settings, Workout } from './types';
+import { DEFAULT_HABIT_GOALS, calculateGoals, newId } from './logic';
+import type { AppState, DateKey, FoodEntry, Goals, HabitId, HealthDay, MyFood, Profile, Settings, Workout } from './types';
 
 const STORAGE_KEY = 'lockedin:v1';
 
 const initialState: AppState = {
   profile: null,
-  settings: { healthConnect: false, reminders: true, reminderHour: 20 },
-  goals: { kcal: 2400, protein: 160, carbs: 260, fat: 75 },
+  settings: { healthConnect: false, reminders: true, reminderHour: 20, bottleMl: 500, seenLevel: 0 },
+  goals: { ...DEFAULT_HABIT_GOALS, kcal: 2400, protein: 160, carbs: 260, fat: 75 },
   health: {},
+  water: {},
   food: [],
+  myFoods: [],
+  challengeWins: [],
   workouts: [],
   checks: {},
   likes: [],
@@ -29,13 +32,20 @@ type Action =
   | { type: 'load'; state: AppState }
   | { type: 'addFood'; entry: Omit<FoodEntry, 'id'> }
   | { type: 'removeFood'; id: string }
-  | { type: 'addWorkout'; workout: Omit<Workout, 'id'> }
+  | { type: 'updateFood'; id: string; changes: Partial<Omit<FoodEntry, 'id'>> }
+  | { type: 'addWorkout'; workout: Omit<Workout, 'id'> & { id?: string } }
   | { type: 'removeWorkout'; id: string }
   | { type: 'toggleHabit'; date: DateKey; habit: HabitId }
   | { type: 'toggleLike'; postId: string }
   | { type: 'setGoals'; goals: Goals }
   | { type: 'setProfile'; profile: Profile }
   | { type: 'setSettings'; settings: Settings }
+  | { type: 'addWater'; date: DateKey; ml: number }
+  | { type: 'addMyFood'; food: Omit<MyFood, 'id'> }
+  | { type: 'removeMyFood'; id: string }
+  | { type: 'updateMyFood'; id: string; changes: Partial<Omit<MyFood, 'id'>> }
+  | { type: 'updateWorkout'; id: string; changes: Partial<Workout> }
+  | { type: 'winChallenge'; id: string; title: string; date: DateKey }
   | { type: 'syncHealth'; date: DateKey; day: HealthDay; workouts: Omit<Workout, 'id'>[] }
   | { type: 'reset' };
 
@@ -46,13 +56,17 @@ function reducer(state: AppState, action: Action): AppState {
         ...initialState,
         ...action.state,
         settings: { ...initialState.settings, ...action.state.settings },
+        // Data saved by older versions doesn't have the newer goal fields yet.
+        goals: { ...initialState.goals, ...action.state.goals },
       };
     case 'addFood':
       return { ...state, food: [...state.food, { ...action.entry, id: newId() }] };
     case 'removeFood':
       return { ...state, food: state.food.filter((f) => f.id !== action.id) };
+    case 'updateFood':
+      return { ...state, food: state.food.map((f) => (f.id === action.id ? { ...f, ...action.changes } : f)) };
     case 'addWorkout':
-      return { ...state, workouts: [...state.workouts, { ...action.workout, id: newId() }] };
+      return { ...state, workouts: [...state.workouts, { ...action.workout, id: action.workout.id ?? newId() }] };
     case 'removeWorkout':
       return { ...state, workouts: state.workouts.filter((w) => w.id !== action.id) };
     case 'toggleHabit': {
@@ -71,9 +85,29 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'setGoals':
       return { ...state, goals: action.goals };
-    case 'setProfile':
-      // Saving a profile also recalculates your daily goals.
-      return { ...state, profile: action.profile, goals: calculateGoals(action.profile) };
+    case 'setProfile': {
+      // Saving a profile recalculates your calories and macros, unless you set them yourself.
+      const macros = state.goals.customMacros ? {} : calculateGoals(action.profile);
+      return { ...state, profile: action.profile, goals: { ...state.goals, ...macros } };
+    }
+    case 'addWater': {
+      const ml = Math.max(0, (state.water[action.date] ?? 0) + action.ml);
+      return { ...state, water: { ...state.water, [action.date]: ml } };
+    }
+    case 'addMyFood':
+      return { ...state, myFoods: [...state.myFoods, { ...action.food, id: newId() }] };
+    case 'removeMyFood':
+      return { ...state, myFoods: state.myFoods.filter((f) => f.id !== action.id) };
+    case 'updateMyFood':
+      return { ...state, myFoods: state.myFoods.map((f) => (f.id === action.id ? { ...f, ...action.changes } : f)) };
+    case 'winChallenge':
+      if (state.challengeWins.some((c) => c.id === action.id)) return state;
+      return { ...state, challengeWins: [...state.challengeWins, { id: action.id, title: action.title, date: action.date }] };
+    case 'updateWorkout':
+      return {
+        ...state,
+        workouts: state.workouts.map((w) => (w.id === action.id ? { ...w, ...action.changes } : w)),
+      };
     case 'setSettings':
       return { ...state, settings: action.settings };
     case 'syncHealth': {

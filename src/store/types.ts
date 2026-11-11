@@ -14,7 +14,7 @@ export type FoodEntry = {
   fat: number; // grams
 };
 
-export type WorkoutType = 'gym' | 'run' | 'other';
+export type WorkoutType = 'gym' | 'run' | 'walk' | 'cycle' | 'swim' | 'other';
 
 export type ExerciseSet = { reps: number; weight: number };
 
@@ -30,6 +30,22 @@ export type Workout = {
   exercises?: Exercise[]; // gym sessions
   /** Set when imported from Health Connect, so it's never imported twice */
   externalId?: string;
+  /** Photo on this phone (file URI), shared to the feed with the workout */
+  photoUri?: string;
+  /** Friends who trained with you */
+  tagged?: { id: string; name: string }[];
+};
+
+/** A food you created yourself, reusable from Add food. Values per portion. */
+export type MyFood = {
+  id: string;
+  name: string;
+  /** e.g. "1 bowl (350 g)" */
+  portion: string;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
 };
 
 export type Goals = {
@@ -37,6 +53,13 @@ export type Goals = {
   protein: number;
   carbs: number;
   fat: number;
+  /** True when you set the macros yourself instead of using the calculated ones */
+  customMacros?: boolean;
+  /** Daily habit targets */
+  steps: number;
+  waterMl: number;
+  /** "Asleep by" hour, e.g. 23 = asleep by 23:00 */
+  sleepByHour: number;
 };
 
 /**
@@ -82,6 +105,10 @@ export type Settings = {
   reminders: boolean;
   /** Hour of the day (0-23) for the "don't break your streak" reminder. */
   reminderHour: number;
+  /** Size of one tap in the water tracker, in ml */
+  bottleMl: number;
+  /** Highest level you've already been congratulated for */
+  seenLevel: number;
 };
 
 export type AppState = {
@@ -90,7 +117,12 @@ export type AppState = {
   settings: Settings;
   goals: Goals;
   health: Record<DateKey, HealthDay>;
+  /** Water drunk per day, in ml */
+  water: Record<DateKey, number>;
   food: FoodEntry[];
+  myFoods: MyFood[];
+  /** Friend challenges you completed (for badges and XP) */
+  challengeWins: { id: string; title: string; date: DateKey }[];
   workouts: Workout[];
   /** Manual habits ticked per day, e.g. { '2026-10-27': ['water', 'steps'] } */
   checks: Record<DateKey, HabitId[]>;

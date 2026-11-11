@@ -4,8 +4,9 @@
  * database (supabase/migrations), not by this file.
  */
 import { addDays, startOfWeek, todayKey } from '@/store/dates';
-import { dayTotals, isLockedIn, pace } from '@/store/logic';
-import type { AppState, DateKey } from '@/store/types';
+import { dayTotals, formatDistance, isLockedIn, pace } from '@/store/logic';
+import type { AppState, DateKey, WorkoutType } from '@/store/types';
+import { uploadPhoto, workoutPhotoUrls } from './photos';
 import { db } from './supabase';
 
 export type PublicProfile = {
@@ -15,6 +16,9 @@ export type PublicProfile = {
   week_start: string | null;
   week_points: number;
   streak: number;
+  avatar_url: string | null;
+  xp: number;
+  level: number;
 };
 
 export type Friendship = {
@@ -33,6 +37,13 @@ export type Post = {
   stats: { label: string; value: string }[];
   created_at: string;
   author: string;
+  authorAvatar: string | null;
+  authorLevel: number;
+  workoutType: WorkoutType | null;
+  /** Temporary link to the workout photo, if any */
+  photoUrl: string | null;
+  /** Friends who were tagged */
+  tagged: { id: string; name: string }[];
   likes: number;
   likedByMe: boolean;
   comments: number;
@@ -122,12 +133,21 @@ export async function getFeed(): Promise<Post[]> {
   const me = await myId();
   const { data, error } = await db()
     .from('posts')
-    .select('id, user_id, kind, title, stats, created_at, profiles(display_name), post_likes(user_id), post_comments(count)')
+    .select(
+      'id, user_id, kind, title, stats, created_at, workout_type, photo_path, tagged, profiles(display_name, avatar_url, level), post_likes(user_id), post_comments(count)',
+    )
     .order('created_at', { ascending: false })
-    .limit(40);
+    .limit(50);
   if (error) throw error;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map((p) => ({
+  const rows = data as any[];
+  // Names of tagged friends, and view links for photos.
+  const taggedIds = [...new Set(rows.flatMap((p) => p.tagged ?? []))];
+  const { data: people } = taggedIds.length
+    ? await db().from('profiles').select('id, display_name').in('id', taggedIds)
+    : { data: [] as { id: string; display_name: string }[] };
+  const photoUrls = await workoutPhotoUrls(rows.map((p) => p.photo_path).filter(Boolean));
+  return rows.map((p) => ({
     id: p.id,
     user_id: p.user_id,
     kind: p.kind,
@@ -135,6 +155,14 @@ export async function getFeed(): Promise<Post[]> {
     stats: p.stats ?? [],
     created_at: p.created_at,
     author: p.user_id === me ? 'You' : p.profiles?.display_name ?? 'Friend',
+    authorAvatar: p.profiles?.avatar_url ?? null,
+    authorLevel: p.profiles?.level ?? 1,
+    workoutType: p.workout_type ?? null,
+    photoUrl: p.photo_path ? photoUrls[p.photo_path] ?? null : null,
+    tagged: (p.tagged ?? []).map((id: string) => ({
+      id,
+      name: id === me ? 'You' : people?.find((x) => x.id === id)?.display_name ?? 'Friend',
+    })),
     likes: p.post_likes.length,
     likedByMe: p.post_likes.some((l: { user_id: string }) => l.user_id === me),
     comments: p.post_comments[0]?.count ?? 0,
@@ -178,20 +206,44 @@ export async function addComment(postId: string, body: string) {
  * Share your last 7 days to the feed: every workout, and every locked-in day.
  * Already-shared items are skipped; deleted workouts are removed from the feed.
  */
+/** Short stable fingerprint of a string (for file names). */
+function hash(text: string) {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 export async function shareRecentActivity(state: AppState) {
   const me = await myId();
   const since = addDays(todayKey(), -6);
-  const posts: { user_id: string; ref: string; kind: string; title: string; stats: unknown }[] = [];
+  const posts: {
+    user_id: string;
+    ref: string;
+    kind: string;
+    title: string;
+    stats: unknown;
+    workout_type?: string;
+    tagged?: string[];
+  }[] = [];
 
-  for (const w of state.workouts.filter((x) => x.date >= since)) {
+  const recent = state.workouts.filter((x) => x.date >= since);
+  for (const w of recent) {
     const stats = [{ label: 'Time', value: `${w.durationMin} min` }];
-    if (w.distanceKm) stats.unshift({ label: 'Distance', value: `${w.distanceKm} km` });
-    if (w.distanceKm) stats.push({ label: 'Pace', value: pace(w) ?? '' });
+    if (w.distanceKm) stats.unshift({ label: 'Distance', value: formatDistance(w) });
+    if (w.distanceKm) stats.push({ label: w.type === 'cycle' ? 'Speed' : 'Pace', value: pace(w) ?? '' });
     if (w.exercises?.length) {
       const sets = w.exercises.reduce((t, e) => t + e.sets.length, 0);
       stats.unshift({ label: 'Exercises', value: String(w.exercises.length) }, { label: 'Sets', value: String(sets) });
     }
-    posts.push({ user_id: me, ref: `workout:${w.id}`, kind: 'workout', title: w.title, stats });
+    posts.push({
+      user_id: me,
+      ref: `workout:${w.id}`,
+      kind: 'workout',
+      title: w.title,
+      stats,
+      workout_type: w.type,
+      tagged: (w.tagged ?? []).map((t) => t.id),
+    });
   }
 
   for (let d: DateKey = since; d <= todayKey(); d = addDays(d, 1)) {
@@ -212,6 +264,34 @@ export async function shareRecentActivity(state: AppState) {
   if (posts.length) {
     const { error } = await db().from('posts').upsert(posts, { onConflict: 'user_id,ref', ignoreDuplicates: true });
     if (error) throw error;
+  }
+
+  // Keep tags and photos in sync for workouts you edited after logging them.
+  const { data: shared } = recent.length === 0 ? { data: [] } : await db()
+    .from('posts')
+    .select('id, ref, tagged, photo_path')
+    .eq('user_id', me)
+    .in('ref', recent.map((w) => `workout:${w.id}`));
+  for (const post of shared ?? []) {
+    const w = recent.find((x) => `workout:${x.id}` === post.ref);
+    if (!w) continue;
+    const tagged = (w.tagged ?? []).map((t) => t.id);
+    const changes: { tagged?: string[]; photo_path?: string | null } = {};
+    if (JSON.stringify(tagged) !== JSON.stringify(post.tagged ?? [])) changes.tagged = tagged;
+    // The file name follows the local photo, so a changed photo is uploaded again.
+    const wanted = w.photoUri ? `${me}/${w.id}-${hash(w.photoUri)}.jpg` : null;
+    if (wanted !== (post.photo_path ?? null)) {
+      if (wanted) {
+        const uploaded = await uploadPhoto('workout-photos', wanted, w.photoUri!, 1080).catch(() => null);
+        if (uploaded) changes.photo_path = uploaded;
+      } else {
+        changes.photo_path = null;
+      }
+      if (post.photo_path && changes.photo_path !== undefined) {
+        db().storage.from('workout-photos').remove([post.photo_path]).catch(() => {});
+      }
+    }
+    if (Object.keys(changes).length) await db().from('posts').update(changes).eq('id', post.id);
   }
 
   // Remove feed posts for workouts you deleted.
@@ -305,4 +385,78 @@ export async function updateMyChallengeProgress(state: AppState, challenges: Cha
         db().from('challenge_members').update({ progress: myProgress(state, c) }).eq('challenge_id', c.id).eq('user_id', me),
       ),
   );
+}
+
+// ───────────── Find people ─────────────
+
+/** Search Locked in users by name (at least 2 letters). */
+export async function searchPeople(query: string): Promise<PublicProfile[]> {
+  const me = await myId();
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const { data, error } = await db()
+    .from('profiles')
+    .select('*')
+    .ilike('display_name', `%${q.replace(/[%_]/g, '')}%`)
+    .neq('id', me)
+    .order('xp', { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return data;
+}
+
+/** Send a friend request to someone you found by name. */
+export async function addFriend(id: string) {
+  const me = await myId();
+  const { error } = await db().from('friendships').insert({ requester: me, addressee: id });
+  if (error && error.code === '23505') throw new Error('You are already connected (or a request is pending).');
+  if (error) throw error;
+}
+
+// ───────────── Profile picture ─────────────
+
+export async function setAvatar(uri: string): Promise<string> {
+  const me = await myId();
+  const path = `${me}/avatar-${Date.now()}.jpg`;
+  await uploadPhoto('avatars', path, uri, 400);
+  const url = db().storage.from('avatars').getPublicUrl(path).data.publicUrl;
+  const { error } = await db().from('profiles').update({ avatar_url: url }).eq('id', me);
+  if (error) throw error;
+  return url;
+}
+
+// ───────────── Coach ─────────────
+
+export type CoachLinks = {
+  /** Friends you share your nutrition with */
+  myCoaches: string[];
+  /** Friends who share their nutrition with you */
+  myClients: PublicProfile[];
+};
+
+export async function getCoachLinks(): Promise<CoachLinks> {
+  const me = await myId();
+  const { data, error } = await db().from('coach_access').select('owner, coach');
+  if (error) throw error;
+  const clientIds = data.filter((l) => l.coach === me).map((l) => l.owner);
+  const { data: clients } = clientIds.length
+    ? await db().from('profiles').select('*').in('id', clientIds)
+    : { data: [] as PublicProfile[] };
+  return { myCoaches: data.filter((l) => l.owner === me).map((l) => l.coach), myClients: clients ?? [] };
+}
+
+/** Let a friend see (or stop seeing) your calories, macros and full log. */
+export async function setCoach(friendId: string, allowed: boolean) {
+  const me = await myId();
+  const { error } = allowed
+    ? await db().from('coach_access').insert({ owner: me, coach: friendId })
+    : await db().from('coach_access').delete().eq('owner', me).eq('coach', friendId);
+  if (error && error.code !== '23505') throw error;
+}
+
+/** The full log of someone who chose you as their coach. */
+export async function getClientData(ownerId: string): Promise<Partial<AppState> | null> {
+  const { data, error } = await db().from('user_data').select('data').eq('user_id', ownerId).maybeSingle();
+  if (error) throw error;
+  return (data?.data as Partial<AppState>) ?? null;
 }

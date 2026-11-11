@@ -12,6 +12,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 import { startOfWeek, todayKey } from '@/store/dates';
 import { currentStreak, weekPoints } from '@/store/logic';
+import { levelInfo, totalXp } from '@/store/progress';
 import { useStore } from '@/store/store';
 import type { AppState } from '@/store/types';
 import { shareRecentActivity } from './social';
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (json === lastSaved.current) return;
     const timer = setTimeout(async () => {
       const today = todayKey();
+      const xp = totalXp(state);
       const [{ error }] = await Promise.all([
         db().from('user_data').upsert({ user_id: userId, data: state, updated_at: new Date().toISOString() }),
         db()
@@ -77,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             week_start: startOfWeek(today),
             week_points: weekPoints(state),
             streak: currentStreak(state),
+            xp,
+            level: levelInfo(xp).level,
             updated_at: new Date().toISOString(),
           })
           .eq('id', userId),

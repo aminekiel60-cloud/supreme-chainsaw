@@ -19,12 +19,19 @@ import Animated, {
 import { Colors } from '@/constants/theme';
 import { LogoMark } from './Logo';
 
-export type CelebrationKind = 'lockedIn' | 'perfect';
+export type CelebrationKind = 'lockedIn' | 'perfect' | 'levelUp';
 
 const PIECES = 28;
 const CONFETTI_COLORS = [Colors.lime, '#C8FF7A', '#FFFFFF', Colors.carbs];
 
-export function Celebration({ kind, onDone }: { kind: CelebrationKind; onDone: () => void }) {
+const TEXT: Record<CelebrationKind, (level: number) => { title: string; subtitle: string }> = {
+  lockedIn: () => ({ title: 'LOCKED IN 🔒', subtitle: 'Your day counts towards your streak.' }),
+  perfect: () => ({ title: '100% — PERFECT DAY', subtitle: 'Every habit done. Legendary.' }),
+  levelUp: (level) => ({ title: `LEVEL ${level}`, subtitle: 'Level up! Keep locking in.' }),
+};
+
+export function Celebration({ kind, level = 1, onDone }: { kind: CelebrationKind; level?: number; onDone: () => void }) {
+  const text = TEXT[kind](level);
   const scale = useSharedValue(0.3);
   const glow = useSharedValue(0);
 
@@ -51,10 +58,10 @@ export function Celebration({ kind, onDone }: { kind: CelebrationKind; onDone: (
           </Animated.View>
         </View>
         <Animated.Text entering={FadeIn.delay(250)} style={s.title}>
-          {kind === 'perfect' ? '100% — PERFECT DAY' : 'LOCKED IN 🔒'}
+          {text.title}
         </Animated.Text>
         <Animated.Text entering={FadeIn.delay(400)} style={s.subtitle}>
-          {kind === 'perfect' ? 'Every habit done. Legendary.' : 'Your day counts towards your streak.'}
+          {text.subtitle}
         </Animated.Text>
       </Pressable>
     </Animated.View>

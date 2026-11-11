@@ -1,10 +1,10 @@
-/** CALENDAR — month view of your daily progress, workouts and streaks. */
+/** CALENDAR — month view of your daily progress, workouts and streaks (from Home or Profile). */
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HabitList } from '@/components/HabitList';
-import { Card, ProgressBar, Screen, SectionTitle, styles as ui } from '@/components/ui';
+import { Card, ProgressBar, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { prettyDate, toKey, todayKey } from '@/store/dates';
 import { currentStreak, dayProgress, dayTotals, isLockedIn, workoutsOn } from '@/store/logic';
@@ -38,9 +38,9 @@ export default function CalendarScreen() {
   const workouts = workoutsOn(state, selected);
 
   return (
-    <Screen>
+    <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 48 }}>
       <View style={s.rowBetween}>
-        <Text style={[Type.title, { color: Colors.text }]}>Calendar</Text>
+        <Text style={[Type.title, { color: Colors.text }]}>Your month</Text>
         <View style={s.streak}>
           <Ionicons name="flame" size={16} color={Colors.lime} />
           <Text style={{ color: Colors.lime, fontWeight: '800' }}>{currentStreak(state)} day streak</Text>
@@ -103,7 +103,7 @@ export default function CalendarScreen() {
         </Text>
         <HabitList date={selected} />
       </Card>
-    </Screen>
+    </ScrollView>
   );
 }
 

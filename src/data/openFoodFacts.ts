@@ -13,6 +13,8 @@ export type Product = {
   servingGrams: number | null;
   /** Where the data came from */
   source: 'openfoodfacts' | 'community';
+  /** False when the database knows the product but not its nutrition values */
+  complete: boolean;
 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -28,7 +30,22 @@ export async function lookupBarcode(barcode: string): Promise<Product | null> {
 
   const p = json.product;
   const n = p.nutriments ?? {};
-  const kcal = Number(n['energy-kcal_100g'] ?? (n['energy_100g'] ? n['energy_100g'] / 4.184 : 0));
+  const serving = Number(p.serving_quantity) > 0 ? Number(p.serving_quantity) : null;
+
+  // Values per 100 g; fall back to per-serving values when that's all the label gives.
+  const per100 = (key: string): number | null => {
+    const v = Number(n[`${key}_100g`]);
+    if (Number.isFinite(v) && n[`${key}_100g`] !== undefined && n[`${key}_100g`] !== '') return v;
+    const sv = Number(n[`${key}_serving`]);
+    if (serving && Number.isFinite(sv) && n[`${key}_serving`] !== undefined) return (sv / serving) * 100;
+    return null;
+  };
+  const kj = per100('energy-kj') ?? per100('energy');
+  const kcal = per100('energy-kcal') ?? (kj !== null ? kj / 4.184 : null);
+  const protein = per100('proteins');
+  const carbs = per100('carbohydrates');
+  const fat = per100('fat');
+
   const name = [p.brands?.split(',')[0]?.trim(), p.product_name_nl || p.product_name_en || p.product_name]
     .filter(Boolean)
     .join(' – ');
@@ -37,13 +54,15 @@ export async function lookupBarcode(barcode: string): Promise<Product | null> {
     barcode,
     name: name || `Product ${barcode}`,
     per100: {
-      kcal: Math.round(kcal),
-      protein: round1(Number(n.proteins_100g ?? 0)),
-      carbs: round1(Number(n.carbohydrates_100g ?? 0)),
-      fat: round1(Number(n.fat_100g ?? 0)),
+      kcal: Math.round(kcal ?? 0),
+      protein: round1(protein ?? 0),
+      carbs: round1(carbs ?? 0),
+      fat: round1(fat ?? 0),
     },
-    servingGrams: Number(p.serving_quantity) > 0 ? Number(p.serving_quantity) : null,
+    servingGrams: serving,
     source: 'openfoodfacts',
+    // Many products are in the database without a nutrition table yet.
+    complete: kcal !== null && (kcal > 0 || [protein, carbs, fat].some((x) => (x ?? 0) > 0)),
   };
 }
 
