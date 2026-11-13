@@ -90,7 +90,8 @@ export default function PhotoScreen() {
         },
       });
     }
-    router.dismissTo('/nutrition');
+    // Close this screen and Add food, back to wherever you started.
+    router.dismiss(2);
   };
 
   if (!cloudEnabled) {

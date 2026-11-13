@@ -76,7 +76,7 @@ export default function ActiveWorkoutScreen() {
         <Stack.Screen options={{ title: 'Workout' }} />
         <Ionicons name="barbell" size={44} color={Colors.lime} />
         <Text style={[ui.text, { textAlign: 'center' }]}>No workout in progress.</Text>
-        <Button title="Start a workout" icon="play" onPress={() => router.replace('/training')} />
+        <Button title="Start a workout" icon="play" onPress={() => router.replace('/coach')} />
       </View>
     );
   }

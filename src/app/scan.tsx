@@ -203,7 +203,8 @@ export default function ScanScreen() {
             type: 'addFood',
             entry: { name: product.name, meal, date: params.date ?? todayKey(), ...n, base: { amount: g, unit: 'g', ...product.per100 } },
           });
-          router.dismissTo('/nutrition');
+          // Close this screen and Add food, back to wherever you started (Today or the food diary).
+          router.dismiss(2);
         }}
       />
       <Button title="Scan another" icon="scan" variant="ghost" onPress={scanAgain} />
