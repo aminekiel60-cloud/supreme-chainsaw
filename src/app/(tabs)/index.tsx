@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ActiveWorkoutBanner } from '@/components/ActiveWorkoutBanner';
 import { Avatar } from '@/components/Avatar';
 import { HabitList } from '@/components/HabitList';
 import { LevelCard } from '@/components/LevelCard';
@@ -43,6 +44,8 @@ export default function HomeScreen() {
         <Text style={[Type.title, { color: Colors.text }]}>Hey {state.profile?.name ?? 'there'} 👋</Text>
         <Text style={ui.muted}>{prettyDate(today)}</Text>
       </View>
+
+      <ActiveWorkoutBanner />
 
       <FadeInCard index={0}>
         <Card style={{ paddingVertical: 12 }}>

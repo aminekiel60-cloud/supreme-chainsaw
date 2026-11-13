@@ -84,6 +84,11 @@ function RootStack() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="add-food" options={{ presentation: 'modal', title: 'Add food' }} />
           <Stack.Screen name="log-workout" options={{ presentation: 'modal', title: 'Log workout' }} />
+          <Stack.Screen name="active-workout" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', gestureEnabled: false }} />
+          <Stack.Screen name="exercise-picker" options={{ presentation: 'modal', title: 'Add exercise' }} />
+          <Stack.Screen name="exercise/[name]" options={{ title: 'Exercise' }} />
+          <Stack.Screen name="routines" options={{ title: 'Routines' }} />
+          <Stack.Screen name="body-weight" options={{ title: 'Body weight' }} />
           <Stack.Screen name="photo" options={{ presentation: 'modal', title: 'AI food photo' }} />
           <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan barcode' }} />
           <Stack.Screen name="post/[id]" options={{ presentation: 'modal', title: 'Comments' }} />

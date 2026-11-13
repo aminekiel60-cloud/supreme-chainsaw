@@ -1,8 +1,8 @@
 /** LOG WORKOUT — gym (exercises, sets, reps, kg), run, walk, cycle, swim or any sport, with photo and friends. */
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FormScroll } from '@/components/FormScroll';
@@ -11,7 +11,9 @@ import { Button, Card, Field, SectionTitle, styles as ui } from '@/components/ui
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { keepPhoto, pickPhoto } from '@/lib/photos';
 import { cloudEnabled } from '@/lib/supabase';
+import { takeDraftPick } from '@/lib/workouts';
 import { todayKey } from '@/store/dates';
+import { detectRecords } from '@/store/exercises';
 import { SPORTS, newId, sport } from '@/store/logic';
 import { useStore } from '@/store/store';
 import type { WorkoutType } from '@/store/types';
@@ -61,6 +63,23 @@ export default function LogWorkoutScreen() {
     return previous?.exercises?.find((e) => e.name.toLowerCase() === key)?.sets ?? null;
   };
 
+  // An exercise picked from the library lands in the first empty row (or a new one).
+  useFocusEffect(
+    useCallback(() => {
+      const picked = takeDraftPick();
+      if (!picked) return;
+      setExercises((list) => {
+        const empty = list.findIndex((e) => !e.name.trim());
+        if (empty >= 0) return list.map((e, i) => (i === empty ? { ...e, name: picked } : e));
+        return [...list, { name: picked, sets: [{ reps: '', weight: '' }] }];
+      });
+    }, []),
+  );
+
+  const removeSet = (i: number, j: number) =>
+    updateExercise(i, { sets: exercises[i].sets.length > 1 ? exercises[i].sets.filter((_, idx) => idx !== j) : [{ reps: '', weight: '' }] });
+  const removeExercise = (i: number) => setExercises((list) => (list.length > 1 ? list.filter((_, idx) => idx !== i) : [{ name: '', sets: [{ reps: '', weight: '' }] }]));
+
   const updateExercise = (i: number, change: Partial<DraftExercise>) =>
     setExercises((list) => list.map((e, idx) => (idx === i ? { ...e, ...change } : e)));
 
@@ -108,7 +127,7 @@ export default function LogWorkoutScreen() {
       router.back();
       return;
     }
-    dispatch({ type: 'addWorkout', workout });
+    dispatch({ type: 'addWorkout', workout: { ...workout, prs: detectRecords(state, { ...workout, id }) } });
     // Straight to the summary, so you can share it.
     router.replace({ pathname: '/workout/[id]', params: { id } });
   };
@@ -145,12 +164,24 @@ export default function LogWorkoutScreen() {
           <SectionTitle>Exercises</SectionTitle>
           {exercises.map((ex, i) => (
             <Card key={i} style={{ gap: Spacing.sm }}>
-              <Field
-                label={`Exercise ${i + 1}`}
-                placeholder="e.g. Bench press"
-                value={ex.name}
-                onChangeText={(name) => updateExercise(i, { name })}
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm }}>
+                <Field
+                  label={`Exercise ${i + 1}`}
+                  placeholder="e.g. Bench press"
+                  value={ex.name}
+                  onChangeText={(name) => updateExercise(i, { name })}
+                />
+                <Pressable
+                  hitSlop={8}
+                  style={{ paddingBottom: 12 }}
+                  onPress={() => router.push({ pathname: '/exercise-picker', params: { target: 'draft' } })}
+                  accessibilityLabel="Pick from library">
+                  <Ionicons name="search" size={22} color={Colors.lime} />
+                </Pressable>
+                <Pressable hitSlop={8} style={{ paddingBottom: 12 }} onPress={() => removeExercise(i)} accessibilityLabel="Remove exercise">
+                  <Ionicons name="trash-outline" size={22} color={Colors.textMuted} />
+                </Pressable>
+              </View>
               {lastTime(ex.name) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                   <Text style={[ui.muted, { color: Colors.lime, flex: 1 }]}>
@@ -187,6 +218,9 @@ export default function LogWorkoutScreen() {
                     value={set.weight}
                     onChangeText={(weight) => updateSet(i, j, { weight })}
                   />
+                  <Pressable hitSlop={8} onPress={() => removeSet(i, j)} accessibilityLabel="Remove set">
+                    <Ionicons name="close" size={18} color={Colors.textFaint} />
+                  </Pressable>
                 </View>
               ))}
               <Pressable

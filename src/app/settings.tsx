@@ -84,6 +84,21 @@ export default function ProfileScreen() {
       </Card>
 
       <Card style={{ gap: Spacing.md }}>
+        <SectionTitle>Rest timer</SectionTitle>
+        <Text style={ui.muted}>Default rest between sets in live workouts. You can change it per exercise too.</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+          {[60, 90, 120, 150, 180].map((sec) => (
+            <Chip
+              key={sec}
+              label={`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`}
+              active={settings.restSeconds === sec}
+              onPress={() => dispatch({ type: 'setSettings', settings: { ...settings, restSeconds: sec } })}
+            />
+          ))}
+        </View>
+      </Card>
+
+      <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Reminders</SectionTitle>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={ui.text}>Daily streak reminder</Text>

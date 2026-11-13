@@ -4,6 +4,7 @@
  * in Instagram Stories); "photo" puts the stats over your workout photo.
  */
 import { Ionicons } from '@expo/vector-icons';
+import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import type { ComponentRef, RefObject } from 'react';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
@@ -78,6 +79,15 @@ export function ShareCard({
       {content}
     </View>
   );
+}
+
+/** Save the card as an image in your photo gallery. */
+export async function saveCard(cardRef: RefObject<ComponentRef<typeof View> | null>): Promise<boolean> {
+  const uri = await captureRef(cardRef, { format: 'png', quality: 1, result: 'tmpfile' });
+  const perm = await MediaLibrary.requestPermissionsAsync(true);
+  if (!perm.granted) return false;
+  await MediaLibrary.saveToLibraryAsync(uri);
+  return true;
 }
 
 /** Save the card as a PNG (transparent for stickers) and open the share sheet. */

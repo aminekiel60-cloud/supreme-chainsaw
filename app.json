@@ -89,6 +89,17 @@
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": false
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Locked in to pick meal and workout photos.",
+          "savePhotosPermission": "Allow Locked in to save your workout cards to your photos.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": [
+            "photo"
+          ]
+        }
       ]
     ],
     "experiments": {

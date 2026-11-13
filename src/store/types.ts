@@ -12,13 +12,81 @@ export type FoodEntry = {
   protein: number; // grams
   carbs: number; // grams
   fat: number; // grams
+  /**
+   * What the entry is based on, so the amount can be changed later:
+   * unit 'g' = values per 100 g, unit 'serving' = values per 1 serving.
+   */
+  base?: { amount: number; unit: 'g' | 'serving'; kcal: number; protein: number; carbs: number; fat: number };
 };
 
 export type WorkoutType = 'gym' | 'run' | 'walk' | 'cycle' | 'swim' | 'other';
 
-export type ExerciseSet = { reps: number; weight: number };
+export type ExerciseSet = {
+  reps: number;
+  weight: number;
+  /** Warm-up sets don't count for records */
+  warmup?: boolean;
+  /** Ticked off during a live workout */
+  done?: boolean;
+};
 
-export type Exercise = { name: string; sets: ExerciseSet[] };
+export type Exercise = {
+  name: string;
+  sets: ExerciseSet[];
+  /** Rest between sets for this exercise, in seconds (else the app default) */
+  restSeconds?: number;
+  note?: string;
+};
+
+/** A personal record set during a workout. */
+export type PersonalRecord = {
+  exercise: string;
+  kind: 'weight' | '1rm' | 'volume';
+  value: number;
+};
+
+/** A saved workout plan, e.g. "Push day". */
+export type Routine = {
+  id: string;
+  name: string;
+  exercises: { name: string; sets: number; restSeconds?: number }[];
+  lastUsed?: DateKey;
+};
+
+/** A workout that is going on right now (survives closing the app). */
+export type ActiveWorkout = {
+  id: string;
+  startedAt: string; // ISO time
+  type: WorkoutType;
+  title: string;
+  exercises: Exercise[];
+  routineId?: string;
+  /** When the current rest ends (ISO time), if resting */
+  restUntil?: string;
+  restSeconds?: number;
+  /** The scheduled "rest over" notification, so it can be cancelled */
+  restNotificationId?: string;
+  photoUri?: string;
+  tagged?: { id: string; name: string }[];
+};
+
+export type MuscleGroup =
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'biceps'
+  | 'triceps'
+  | 'quads'
+  | 'hamstrings'
+  | 'glutes'
+  | 'calves'
+  | 'core'
+  | 'cardio'
+  | 'full body';
+
+export type CustomExercise = { name: string; muscle: MuscleGroup };
+
+export type BodyWeightEntry = { date: DateKey; kg: number };
 
 export type Workout = {
   id: string;
@@ -34,6 +102,10 @@ export type Workout = {
   photoUri?: string;
   /** Friends who trained with you */
   tagged?: { id: string; name: string }[];
+  /** Records set in this workout */
+  prs?: PersonalRecord[];
+  /** Started from this routine */
+  routineId?: string;
 };
 
 /** A food you created yourself, reusable from Add food. Values per portion. */
@@ -109,6 +181,10 @@ export type Settings = {
   bottleMl: number;
   /** Highest level you've already been congratulated for */
   seenLevel: number;
+  /** Default rest between sets, in seconds */
+  restSeconds: number;
+  /** Which stats the weekly review shows */
+  reviewStats: string[];
 };
 
 export type AppState = {
@@ -123,6 +199,10 @@ export type AppState = {
   myFoods: MyFood[];
   /** Friend challenges you completed (for badges and XP) */
   challengeWins: { id: string; title: string; date: DateKey }[];
+  routines: Routine[];
+  activeWorkout: ActiveWorkout | null;
+  customExercises: CustomExercise[];
+  bodyWeight: BodyWeightEntry[];
   workouts: Workout[];
   /** Manual habits ticked per day, e.g. { '2026-10-27': ['water', 'steps'] } */
   checks: Record<DateKey, HabitId[]>;

@@ -39,8 +39,14 @@ async function ensurePermission(): Promise<boolean> {
   return (await Notifications.requestPermissionsAsync()).granted;
 }
 
+/** Cancel only our reminders — never a rest timer that may be running. */
+async function cancelReminders() {
+  const all = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(all.filter((n) => n.content.data?.kind === 'reminder').map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
+}
+
 async function plan(state: AppState) {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await cancelReminders();
   if (!state.settings.reminders || !state.profile) return;
   if (!(await ensurePermission())) return;
 
@@ -59,6 +65,7 @@ async function plan(state: AppState) {
       content: {
         title: i === 0 && streak > 0 ? `🔥 Your ${streak}-day streak is at risk` : '🔒 Time to lock in',
         body: 'Tick off your habits and log your food before the day ends. LOCK IN. LEVEL UP.',
+        data: { kind: 'reminder' },
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
     });

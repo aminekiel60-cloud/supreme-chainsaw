@@ -5,13 +5,14 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ShareCard, shareCard, type ShareStyle } from '@/components/ShareCard';
+import { ShareCard, saveCard, shareCard, type ShareStyle } from '@/components/ShareCard';
 import { TagFriends } from '@/components/TagFriends';
 import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { keepPhoto, pickPhoto } from '@/lib/photos';
 import { cloudEnabled } from '@/lib/supabase';
 import { prettyDate } from '@/store/dates';
+import { describeRecord } from '@/store/exercises';
 import { formatDistance, pace, sport } from '@/store/logic';
 import { useStore } from '@/store/store';
 
@@ -48,6 +49,19 @@ export default function WorkoutScreen() {
     ]);
   };
 
+  const save = async () => {
+    if (style === 'photo' && !workout.photoUri) return changePhoto();
+    setSharing(true);
+    try {
+      const ok = await saveCard(cardRef);
+      Alert.alert(ok ? 'Saved to your gallery' : 'Permission needed', ok ? 'Find it in your Photos app.' : 'Allow Locked in to save photos and try again.');
+    } catch {
+      Alert.alert('Could not save the image.');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const share = async () => {
     if (style === 'photo' && !workout.photoUri) {
       changePhoto();
@@ -61,6 +75,15 @@ export default function WorkoutScreen() {
     } finally {
       setSharing(false);
     }
+  };
+
+  const saveAsRoutine = () => {
+    dispatch({
+      type: 'addRoutine',
+      routine: { name: workout.title, exercises: (workout.exercises ?? []).map((e) => ({ name: e.name, sets: e.sets.length, restSeconds: e.restSeconds })) },
+    });
+    dispatch({ type: 'updateWorkout', id: workout.id, changes: { routineId: 'saved' } });
+    Alert.alert('Saved as routine', `“${workout.title}” is now in Train → Routines.`);
   };
 
   const remove = () =>
@@ -99,6 +122,17 @@ export default function WorkoutScreen() {
         </Text>
       </View>
 
+      {workout.prs?.length ? (
+        <Card highlight style={{ gap: 6 }}>
+          <Text style={{ color: Colors.lime, fontWeight: '900', letterSpacing: 2 }}>🏆 NEW PERSONAL RECORD{workout.prs.length > 1 ? 'S' : ''}</Text>
+          {workout.prs.map((pr, i) => (
+            <Text key={i} style={ui.text}>
+              {describeRecord(pr)}
+            </Text>
+          ))}
+        </Card>
+      ) : null}
+
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <Big label="Time" value={`${workout.durationMin}`} unit="min" />
         {workout.distanceKm ? <Big label="Distance" value={formatDistance(workout).split(' ')[0]} unit={formatDistance(workout).split(' ')[1]} /> : null}
@@ -108,12 +142,21 @@ export default function WorkoutScreen() {
 
       {workout.exercises?.length ? (
         <Card style={{ gap: Spacing.sm }}>
-          <SectionTitle>Exercises</SectionTitle>
+          <SectionTitle
+            action={
+              !workout.routineId ? (
+                <Pressable onPress={saveAsRoutine}>
+                  <Text style={{ color: Colors.lime, fontWeight: '700' }}>Save as routine</Text>
+                </Pressable>
+              ) : undefined
+            }>
+            Exercises
+          </SectionTitle>
           {workout.exercises.map((e, i) => (
-            <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={[ui.text, { fontWeight: '700' }]}>{e.name}</Text>
-              <Text style={ui.muted}>{e.sets.map((x) => `${x.reps}×${x.weight}`).join('  ')}</Text>
-            </View>
+            <Pressable key={i} onPress={() => router.push({ pathname: '/exercise/[name]', params: { name: e.name } })} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <Text style={[ui.text, { fontWeight: '700', flex: 1 }]}>{e.name}</Text>
+              <Text style={ui.muted}>{e.sets.map((x) => `${x.weight}×${x.reps}`).join('  ')}</Text>
+            </Pressable>
           ))}
         </Card>
       ) : null}
@@ -154,8 +197,13 @@ export default function WorkoutScreen() {
         <View style={s.checker}>
           <ShareCard workout={workout} style={style} photoUri={workout.photoUri} cardRef={cardRef} />
         </View>
-        <View style={{ alignSelf: 'stretch' }}>
-          <Button title={sharing ? 'Preparing…' : 'Share'} icon="share-social" onPress={share} disabled={sharing} />
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, alignSelf: 'stretch' }}>
+          <View style={{ flex: 1 }}>
+            <Button title={sharing ? 'Preparing…' : 'Share'} icon="share-social" onPress={share} disabled={sharing} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button title="Save image" icon="download" variant="ghost" onPress={save} disabled={sharing} />
+          </View>
         </View>
       </Card>
 

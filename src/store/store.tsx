@@ -10,19 +10,46 @@ import { createContext, useCallback, useContext, useEffect, useReducer, useState
 import { haptics } from '@/lib/haptics';
 
 import { DEFAULT_HABIT_GOALS, calculateGoals, newId } from './logic';
-import type { AppState, DateKey, FoodEntry, Goals, HabitId, HealthDay, MyFood, Profile, Settings, Workout } from './types';
+import type {
+  ActiveWorkout,
+  AppState,
+  BodyWeightEntry,
+  CustomExercise,
+  DateKey,
+  FoodEntry,
+  Goals,
+  HabitId,
+  HealthDay,
+  MyFood,
+  Profile,
+  Routine,
+  Settings,
+  Workout,
+} from './types';
 
 const STORAGE_KEY = 'lockedin:v1';
 
 const initialState: AppState = {
   profile: null,
-  settings: { healthConnect: false, reminders: true, reminderHour: 20, bottleMl: 500, seenLevel: 0 },
+  settings: {
+    healthConnect: false,
+    reminders: true,
+    reminderHour: 20,
+    bottleMl: 500,
+    seenLevel: 0,
+    restSeconds: 90,
+    reviewStats: ['workouts', 'activeMinutes', 'volume', 'distance', 'lockedDays', 'prs'],
+  },
   goals: { ...DEFAULT_HABIT_GOALS, kcal: 2400, protein: 160, carbs: 260, fat: 75 },
   health: {},
   water: {},
   food: [],
   myFoods: [],
   challengeWins: [],
+  routines: [],
+  activeWorkout: null,
+  customExercises: [],
+  bodyWeight: [],
   workouts: [],
   checks: {},
   likes: [],
@@ -46,6 +73,13 @@ type Action =
   | { type: 'updateMyFood'; id: string; changes: Partial<Omit<MyFood, 'id'>> }
   | { type: 'updateWorkout'; id: string; changes: Partial<Workout> }
   | { type: 'winChallenge'; id: string; title: string; date: DateKey }
+  | { type: 'setActiveWorkout'; workout: ActiveWorkout | null }
+  | { type: 'addRoutine'; routine: Omit<Routine, 'id'> }
+  | { type: 'updateRoutine'; id: string; changes: Partial<Routine> }
+  | { type: 'removeRoutine'; id: string }
+  | { type: 'addCustomExercise'; exercise: CustomExercise }
+  | { type: 'logBodyWeight'; entry: BodyWeightEntry }
+  | { type: 'removeBodyWeight'; date: DateKey }
   | { type: 'syncHealth'; date: DateKey; day: HealthDay; workouts: Omit<Workout, 'id'>[] }
   | { type: 'reset' };
 
@@ -103,6 +137,28 @@ function reducer(state: AppState, action: Action): AppState {
     case 'winChallenge':
       if (state.challengeWins.some((c) => c.id === action.id)) return state;
       return { ...state, challengeWins: [...state.challengeWins, { id: action.id, title: action.title, date: action.date }] };
+    case 'setActiveWorkout':
+      return { ...state, activeWorkout: action.workout };
+    case 'addRoutine':
+      return { ...state, routines: [...state.routines, { ...action.routine, id: newId() }] };
+    case 'updateRoutine':
+      return { ...state, routines: state.routines.map((r) => (r.id === action.id ? { ...r, ...action.changes } : r)) };
+    case 'removeRoutine':
+      return { ...state, routines: state.routines.filter((r) => r.id !== action.id) };
+    case 'addCustomExercise':
+      if (state.customExercises.some((e) => e.name.toLowerCase() === action.exercise.name.toLowerCase())) return state;
+      return { ...state, customExercises: [...state.customExercises, action.exercise] };
+    case 'logBodyWeight': {
+      const rest = state.bodyWeight.filter((b) => b.date !== action.entry.date);
+      const bodyWeight = [...rest, action.entry].sort((a, b) => (a.date < b.date ? -1 : 1));
+      // Your newest weight also updates your profile (and your calculated goals).
+      const latest = bodyWeight[bodyWeight.length - 1];
+      const profile = state.profile && latest.date === action.entry.date ? { ...state.profile, weightKg: latest.kg } : state.profile;
+      const macros = profile && profile !== state.profile && !state.goals.customMacros ? calculateGoals(profile) : {};
+      return { ...state, bodyWeight, profile, goals: { ...state.goals, ...macros } };
+    }
+    case 'removeBodyWeight':
+      return { ...state, bodyWeight: state.bodyWeight.filter((b) => b.date !== action.date) };
     case 'updateWorkout':
       return {
         ...state,

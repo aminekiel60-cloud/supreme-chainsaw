@@ -131,22 +131,29 @@ export async function removeFriend(id: number) {
 
 export async function getFeed(): Promise<Post[]> {
   const me = await myId();
-  const { data, error } = await db()
-    .from('posts')
-    .select(
-      'id, user_id, kind, title, stats, created_at, workout_type, photo_path, tagged, profiles(display_name, avatar_url, level), post_likes(user_id), post_comments(count)',
-    )
-    .order('created_at', { ascending: false })
-    .limit(50);
+  // One database call (see supabase/migrations/…feed_rpc.sql); RLS decides what you can see.
+  const { data, error } = await db().rpc('get_feed', { p_limit: 50 });
   if (error) throw error;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = data as any[];
-  // Names of tagged friends, and view links for photos.
-  const taggedIds = [...new Set(rows.flatMap((p) => p.tagged ?? []))];
-  const { data: people } = taggedIds.length
-    ? await db().from('profiles').select('id, display_name').in('id', taggedIds)
-    : { data: [] as { id: string; display_name: string }[] };
-  const photoUrls = await workoutPhotoUrls(rows.map((p) => p.photo_path).filter(Boolean));
+  type Row = {
+    id: string;
+    user_id: string;
+    kind: Post['kind'];
+    title: string;
+    stats: Post['stats'] | null;
+    created_at: string;
+    workout_type: WorkoutType | null;
+    photo_path: string | null;
+    tagged: string[] | null;
+    tagged_names: string[] | null;
+    author_name: string | null;
+    author_avatar: string | null;
+    author_level: number | null;
+    likes: number;
+    liked_by_me: boolean;
+    comments: number;
+  };
+  const rows = (data ?? []) as Row[];
+  const photoUrls = await workoutPhotoUrls(rows.map((p) => p.photo_path).filter((x): x is string => Boolean(x)));
   return rows.map((p) => ({
     id: p.id,
     user_id: p.user_id,
@@ -154,18 +161,15 @@ export async function getFeed(): Promise<Post[]> {
     title: p.title,
     stats: p.stats ?? [],
     created_at: p.created_at,
-    author: p.user_id === me ? 'You' : p.profiles?.display_name ?? 'Friend',
-    authorAvatar: p.profiles?.avatar_url ?? null,
-    authorLevel: p.profiles?.level ?? 1,
-    workoutType: p.workout_type ?? null,
+    author: p.user_id === me ? 'You' : p.author_name ?? 'Friend',
+    authorAvatar: p.author_avatar,
+    authorLevel: p.author_level ?? 1,
+    workoutType: p.workout_type,
     photoUrl: p.photo_path ? photoUrls[p.photo_path] ?? null : null,
-    tagged: (p.tagged ?? []).map((id: string) => ({
-      id,
-      name: id === me ? 'You' : people?.find((x) => x.id === id)?.display_name ?? 'Friend',
-    })),
-    likes: p.post_likes.length,
-    likedByMe: p.post_likes.some((l: { user_id: string }) => l.user_id === me),
-    comments: p.post_comments[0]?.count ?? 0,
+    tagged: (p.tagged ?? []).map((id, i) => ({ id, name: id === me ? 'You' : p.tagged_names?.[i] ?? 'Friend' })),
+    likes: p.likes,
+    likedByMe: p.liked_by_me,
+    comments: p.comments,
   }));
 }
 
