@@ -1,9 +1,10 @@
-/** EXERCISE — your records, progress chart and history for one exercise. */
+/** EXERCISE: how to do it, your records, progress chart and history for one exercise. */
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
+import { ExerciseDemo } from '@/components/ExerciseDemo';
 import { LineChart } from '@/components/LineChart';
 import { Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
@@ -37,12 +38,17 @@ export default function ExerciseScreen() {
   return (
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 48 }}>
       <Stack.Screen options={{ title: name }} />
-      {muscle && <Text style={ui.muted}>{MUSCLE_LABELS[muscle]} · {records.sessions} sessions</Text>}
+      {muscle && (
+        <Text style={ui.muted}>
+          {MUSCLE_LABELS[muscle]}. {records.sessions === 1 ? 'Done once' : records.sessions ? `Done ${records.sessions} times` : 'Not done yet'}.
+        </Text>
+      )}
+      <ExerciseDemo name={name} />
 
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <Record label="Best weight" value={records.bestWeight ? `${records.bestWeight.weight} kg` : '—'} sub={records.bestWeight ? `× ${records.bestWeight.reps}` : ''} />
-        <Record label="Est. 1RM" value={records.best1RM ? `${records.best1RM.value} kg` : '—'} sub={records.best1RM ? `${records.best1RM.weight} × ${records.best1RM.reps}` : ''} />
-        <Record label="Best volume" value={records.bestVolume ? `${records.bestVolume.value.toLocaleString('en-US')}` : '—'} sub={records.bestVolume ? 'kg in a session' : ''} />
+        <Record label="Best weight" value={records.bestWeight ? `${records.bestWeight.weight} kg` : 'None'} sub={records.bestWeight ? `for ${records.bestWeight.reps} reps` : ''} />
+        <Record label="Est. 1RM" value={records.best1RM ? `${records.best1RM.value} kg` : 'None'} sub={records.best1RM ? `${records.best1RM.weight} × ${records.best1RM.reps}` : ''} />
+        <Record label="Best volume" value={records.bestVolume ? `${records.bestVolume.value.toLocaleString('en-US')}` : 'None'} sub={records.bestVolume ? 'kg in a session' : ''} />
       </View>
 
       <Card style={{ gap: Spacing.md }}>
@@ -53,7 +59,7 @@ export default function ExerciseScreen() {
           <Chip label="Volume" active={metric === 'volume'} onPress={() => setMetric('volume')} />
         </View>
         <LineChart points={points.slice(-20)} unit=" kg" />
-        {suggestion && <Text style={{ color: Colors.lime, fontWeight: '600' }}>💡 Next time: {suggestion.hint}</Text>}
+        {suggestion && <Text style={{ color: Colors.lime, fontWeight: '600' }}>Next time: {suggestion.hint}</Text>}
       </Card>
 
       <SectionTitle>History</SectionTitle>

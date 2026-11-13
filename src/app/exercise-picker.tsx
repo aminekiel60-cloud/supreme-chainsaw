@@ -1,4 +1,4 @@
-/** EXERCISE PICKER — search the library and your own exercises; add to the workout or routine. */
+/** EXERCISES: search the library and your own exercises. Add one to a workout or routine, or open it to see how it's done. */
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -6,6 +6,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import { Button, Chip, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { exerciseGuide } from '@/data/exerciseGuide';
 import { MUSCLE_GROUPS, MUSCLE_LABELS } from '@/data/exercises';
 import { haptics } from '@/lib/haptics';
 import { setDraftPick, type PickerTarget } from '@/lib/workouts';
@@ -14,7 +15,8 @@ import { useStore } from '@/store/store';
 import type { Exercise, MuscleGroup } from '@/store/types';
 
 export default function ExercisePickerScreen() {
-  const { target = 'active', routineId } = useLocalSearchParams<{ target?: PickerTarget; routineId?: string }>();
+  const { target = 'active', routineId } = useLocalSearchParams<{ target?: PickerTarget | 'browse'; routineId?: string }>();
+  const browse = target === 'browse';
   const { state, dispatch } = useStore();
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
@@ -29,6 +31,10 @@ export default function ExercisePickerScreen() {
 
   const pick = (name: string) => {
     haptics.tap();
+    if (browse) {
+      router.push({ pathname: '/exercise/[name]', params: { name } });
+      return;
+    }
     if (target === 'active' && state.activeWorkout) {
       // Prefill with last time's sets, so you only have to tick them off.
       const last = exerciseHistory(state, name)[0];
@@ -61,7 +67,7 @@ export default function ExercisePickerScreen() {
             placeholderTextColor={Colors.textFaint}
             value={query}
             onChangeText={setQuery}
-            autoFocus
+            autoFocus={!browse}
             autoCorrect={false}
           />
           {query.length > 0 && (
@@ -90,13 +96,13 @@ export default function ExercisePickerScreen() {
         ListHeaderComponent={
           q.length > 1 && !exact ? (
             <View style={s.create}>
-              <Text style={[ui.text, { fontWeight: '700' }]}>Create “{query.trim()}”</Text>
+              <Text style={[ui.text, { fontWeight: '700' }]}>Create &quot;{query.trim()}&quot;</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 {MUSCLE_GROUPS.map((m) => (
                   <Chip key={m} label={MUSCLE_LABELS[m]} active={newMuscle === m} onPress={() => setNewMuscle(m)} />
                 ))}
               </View>
-              <Button title="Create and add" icon="add" onPress={create} />
+              <Button title={browse ? 'Create exercise' : 'Create and add'} icon="add" onPress={create} />
             </View>
           ) : undefined
         }
@@ -106,10 +112,15 @@ export default function ExercisePickerScreen() {
               <Text style={[ui.text, { fontWeight: '700' }]}>{item.name}</Text>
               <Text style={ui.muted}>
                 {MUSCLE_LABELS[item.muscle]}
-                {item.times ? ` · ${item.times}× done` : ''}
+                {item.times ? `. Done ${item.times === 1 ? 'once' : `${item.times} times`}` : ''}
               </Text>
             </View>
-            <Ionicons name="add-circle" size={26} color={Colors.lime} />
+            {!browse && exerciseGuide(item.name) && (
+              <Pressable hitSlop={8} onPress={() => router.push({ pathname: '/exercise/[name]', params: { name: item.name } })} accessibilityLabel={`How to do ${item.name}`}>
+                <Ionicons name="information-circle-outline" size={24} color={Colors.textMuted} />
+              </Pressable>
+            )}
+            <Ionicons name={browse ? 'chevron-forward' : 'add-circle'} size={browse ? 20 : 26} color={browse ? Colors.textFaint : Colors.lime} />
           </Pressable>
         )}
         ListEmptyComponent={q.length <= 1 ? <Text style={[ui.muted, { textAlign: 'center' }]}>No exercises here.</Text> : undefined}

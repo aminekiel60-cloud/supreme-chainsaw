@@ -14,6 +14,7 @@ import { PlateCalc } from '@/components/PlateCalc';
 import { Button, Card, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { libraryExercise } from '@/data/exercises';
+import { program as findProgram } from '@/data/programs';
 import { haptics } from '@/lib/haptics';
 import { cancelRestNotification, formatDuration, scheduleRestNotification, useNow } from '@/lib/workoutTimer';
 import { todayKey } from '@/store/dates';
@@ -22,6 +23,29 @@ import { useStore } from '@/store/store';
 import type { ActiveWorkout, Exercise, ExerciseSet, Workout } from '@/store/types';
 
 const num = (v: string) => Number(v.replace(',', '.')) || 0;
+
+type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
+const setType = (set: ExerciseSet): SetType => (set.warmup ? 'warmup' : set.kind ?? 'normal');
+const SET_COLORS: Record<SetType, string> = { normal: Colors.textMuted, warmup: Colors.fat, drop: Colors.carbs, failure: Colors.danger };
+
+/** Tap a set number: choose warm-up, drop set, to failure, or how hard it felt (RPE). */
+function setTypeMenu(set: ExerciseSet, onChange: (c: Partial<ExerciseSet>) => void) {
+  Alert.alert('Set type', 'Warm-up sets do not count for records.', [
+    { text: 'Normal set', onPress: () => onChange({ warmup: false, kind: undefined }) },
+    { text: 'Warm-up', onPress: () => onChange({ warmup: true, kind: undefined }) },
+    { text: 'Drop set', onPress: () => onChange({ warmup: false, kind: 'drop' }) },
+    { text: 'To failure', onPress: () => onChange({ warmup: false, kind: 'failure' }) },
+    {
+      text: set.rpe ? `How hard (now ${set.rpe})` : 'How hard was it (RPE)',
+      onPress: () =>
+        Alert.alert('How hard was it?', '10 means nothing left, 8 means two reps left, 6 is easy.', [
+          ...[10, 9, 8, 7, 6].map((n) => ({ text: String(n), onPress: () => onChange({ rpe: n }) })),
+          { text: 'Clear', onPress: () => onChange({ rpe: undefined }) },
+        ]),
+    },
+    { text: 'Cancel', style: 'cancel' },
+  ]);
+}
 
 export default function ActiveWorkoutScreen() {
   const { state, dispatch } = useStore();
@@ -84,12 +108,33 @@ export default function ActiveWorkoutScreen() {
   };
 
   const toggleDone = (i: number, j: number, fill?: Partial<ExerciseSet>) => {
-    const set = aw.exercises[i].sets[j];
-    const done = !set.done;
+    const ex = aw.exercises[i];
+    const done = !ex.sets[j].done;
     haptics.tap();
     updateSet(i, j, { ...fill, done });
-    if (done) startRest(aw.exercises[i].restSeconds ?? state.settings.restSeconds);
+    // In a superset you go straight to the next exercise; the rest comes after the last one.
+    const nextInSuperset = ex.superset && aw.exercises[i + 1]?.superset === ex.superset;
+    if (done && !nextInSuperset) startRest(ex.restSeconds ?? state.settings.restSeconds);
   };
+
+  const toggleSuperset = (i: number) => {
+    const ex = aw.exercises[i];
+    const next = aw.exercises[i + 1];
+    if (ex.superset && next?.superset === ex.superset) {
+      // Unlink from the next exercise; a group of one is no superset.
+      const list = aw.exercises.map((e, idx) => (idx === i + 1 ? { ...e, superset: undefined } : e));
+      const left = list.filter((e) => e.superset === ex.superset).length;
+      setExercises(left < 2 ? list.map((e) => (e.superset === ex.superset ? { ...e, superset: undefined } : e)) : list);
+      return;
+    }
+    if (!next) return;
+    const used = new Set(aw.exercises.map((e) => e.superset).filter(Boolean));
+    const letter = ex.superset ?? next.superset ?? 'ABCDEFGH'.split('').find((l) => !used.has(l)) ?? 'A';
+    setExercises(aw.exercises.map((e, idx) => (idx === i || idx === i + 1 ? { ...e, superset: letter } : e)));
+  };
+
+  const setNote = (name: string, note: string) =>
+    dispatch({ type: 'apply', change: (s) => ({ exerciseNotes: { ...s.exerciseNotes, [name]: note.trim() } }) });
 
   const addSet = (i: number) => {
     const sets = aw.exercises[i].sets;
@@ -139,11 +184,24 @@ export default function ActiveWorkoutScreen() {
       photoUri: aw.photoUri,
       tagged: aw.tagged,
       routineId: aw.routineId,
+      programDay: aw.programDay,
     };
     workout.prs = detectRecords(state, workout);
     cancelRestNotification();
     dispatch({ type: 'addWorkout', workout });
     if (aw.routineId) dispatch({ type: 'updateRoutine', id: aw.routineId, changes: { lastUsed: todayKey() } });
+    if (aw.programDay) {
+      const [programId, dayId] = aw.programDay.split(':');
+      dispatch({
+        type: 'apply',
+        change: (s) => {
+          const p = findProgram(programId);
+          if (!p || s.program?.id !== programId) return {};
+          const index = p.days.findIndex((d) => d.id === dayId);
+          return { program: { ...s.program, nextDay: index + 1 } };
+        },
+      });
+    }
     dispatch({ type: 'setActiveWorkout', workout: null });
     haptics.success();
     router.replace({ pathname: '/workout/[id]', params: { id: workout.id } });
@@ -228,6 +286,10 @@ export default function ActiveWorkoutScreen() {
             onRemoveSet={(j) => removeSet(i, j)}
             onRemove={() => removeExercise(i)}
             onMove={(dir) => move(i, dir)}
+            onSuperset={() => toggleSuperset(i)}
+            linkedNext={Boolean(ex.superset && aw.exercises[i + 1]?.superset === ex.superset)}
+            note={state.exerciseNotes[ex.name] ?? ''}
+            onNote={(note) => setNote(ex.name, note)}
             onPlates={(w) => setPlates(w)}
             onRest={(seconds) => updateExercise(i, { restSeconds: seconds })}
             defaultRest={state.settings.restSeconds}
@@ -256,6 +318,10 @@ function ExerciseCard({
   onRemoveSet,
   onRemove,
   onMove,
+  onSuperset,
+  linkedNext,
+  note,
+  onNote,
   onPlates,
   onRest,
   defaultRest,
@@ -270,6 +336,10 @@ function ExerciseCard({
   onRemoveSet: (j: number) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
+  onSuperset: () => void;
+  linkedNext: boolean;
+  note: string;
+  onNote: (note: string) => void;
   onPlates: (weight: number) => void;
   onRest: (seconds: number) => void;
   defaultRest: number;
@@ -277,7 +347,20 @@ function ExerciseCard({
   const { state } = useStore();
   const last = exerciseHistory(state, exercise.name)[0];
   const records = exerciseRecords(state, exercise.name);
-  const suggestion = suggestNext(state, exercise.name);
+  const suggestion = suggestNext(state, exercise.name, exercise.targetReps ?? 8);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteText, setNoteText] = useState(note);
+
+  const menu = () =>
+    Alert.alert(exercise.name, undefined, [
+      { text: note ? 'Edit note' : 'Add a note', onPress: () => setEditingNote(true) },
+      index < total - 1 ? { text: linkedNext ? 'Unlink superset' : 'Superset with next exercise', onPress: onSuperset } : null,
+      index > 0 ? { text: 'Move up', onPress: () => onMove(-1) } : null,
+      index < total - 1 ? { text: 'Move down', onPress: () => onMove(1) } : null,
+      { text: 'How to do it, history and records', onPress: () => router.push({ pathname: '/exercise/[name]', params: { name: exercise.name } }) },
+      { text: 'Remove exercise', style: 'destructive' as const, onPress: onRemove },
+      { text: 'Cancel', style: 'cancel' as const },
+    ].filter((x): x is NonNullable<typeof x> => x !== null));
   const isBar = libraryExercise(exercise.name)?.bar;
   const bestNow = Math.max(0, ...exercise.sets.filter((x) => x.done && !x.warmup).map(oneRepMax));
   const newPr = records.best1RM && bestNow > records.best1RM.value;
@@ -297,18 +380,51 @@ function ExerciseCard({
             <Text style={{ color: Colors.background, fontWeight: '900', fontSize: 11 }}>NEW PR</Text>
           </View>
         )}
-        <Pressable hitSlop={8} onPress={() => onMove(-1)} disabled={index === 0} accessibilityLabel="Move exercise up">
-          <Ionicons name="chevron-up" size={20} color={index === 0 ? Colors.textFaint : Colors.textMuted} />
-        </Pressable>
-        <Pressable hitSlop={8} onPress={() => onMove(1)} disabled={index === total - 1} accessibilityLabel="Move exercise down">
-          <Ionicons name="chevron-down" size={20} color={index === total - 1 ? Colors.textFaint : Colors.textMuted} />
-        </Pressable>
         <Pressable hitSlop={8} onPress={onRemove} accessibilityLabel="Remove exercise">
           <Ionicons name="trash-outline" size={20} color={Colors.textMuted} />
         </Pressable>
+        <Pressable hitSlop={10} onPress={menu} accessibilityLabel="Exercise options">
+          <Ionicons name="ellipsis-vertical" size={20} color={Colors.textMuted} />
+        </Pressable>
       </View>
 
-      {suggestion && <Text style={{ color: Colors.lime, fontSize: 12, fontWeight: '600' }}>💡 {suggestion.hint}</Text>}
+      {exercise.superset && (
+        <Text style={s.superset}>
+          Superset {exercise.superset}
+          {linkedNext ? '. Go straight to the next exercise, rest after the last one.' : ''}
+        </Text>
+      )}
+      {exercise.targetReps ? <Text style={ui.muted}>Target: {exercise.targetReps} reps in every set</Text> : null}
+
+      {editingNote ? (
+        <View style={{ gap: 6 }}>
+          <TextInput
+            style={[s.input, { textAlign: 'left', paddingHorizontal: 10, minHeight: 44 }]}
+            value={noteText}
+            onChangeText={setNoteText}
+            placeholder="Seat height 4, grip just outside the rings"
+            placeholderTextColor={Colors.textFaint}
+            autoFocus
+            multiline
+          />
+          <Pressable
+            onPress={() => {
+              onNote(noteText);
+              setEditingNote(false);
+            }}
+            style={s.link}>
+            <Ionicons name="checkmark" size={16} color={Colors.lime} />
+            <Text style={s.linkText}>Save note</Text>
+          </Pressable>
+        </View>
+      ) : note ? (
+        <Pressable onPress={() => setEditingNote(true)} style={s.note}>
+          <Ionicons name="document-text-outline" size={14} color={Colors.textMuted} />
+          <Text style={[ui.muted, { flex: 1 }]}>{note}</Text>
+        </Pressable>
+      ) : null}
+
+      {suggestion && <Text style={{ color: Colors.lime, fontSize: 12, fontWeight: '600' }}>{suggestion.hint}</Text>}
 
       <View style={s.headRow}>
         <Text style={[s.col, s.colSet, ui.statLabel]}>SET</Text>
@@ -379,8 +495,13 @@ function SetRow({
 
   return (
     <View style={[s.setRow, set.done && s.setRowDone]}>
-      <Pressable style={s.colSet} onLongPress={() => onChange({ warmup: !set.warmup })} accessibilityLabel={`Set ${index + 1}, hold to mark as warm-up`}>
-        <Text style={{ color: set.warmup ? Colors.fat : Colors.textMuted, fontWeight: '800' }}>{set.warmup ? 'W' : index + 1}</Text>
+      <Pressable
+        style={s.colSet}
+        onPress={() => setTypeMenu(set, onChange)}
+        onLongPress={() => onChange({ warmup: !set.warmup, kind: undefined })}
+        accessibilityLabel={`Set ${index + 1}. Tap for warm-up, drop set, failure or RPE`}>
+        <Text style={{ color: SET_COLORS[setType(set)], fontWeight: '800' }}>{setType(set) === 'normal' ? index + 1 : setType(set)[0].toUpperCase()}</Text>
+        {set.rpe ? <Text style={s.rpe}>@{set.rpe}</Text> : null}
       </Pressable>
       <Text style={[s.col, s.colPrev, ui.muted]} numberOfLines={1}>
         {previous ? `${previous.weight}×${previous.reps}` : '—'}
@@ -473,4 +594,7 @@ const s = StyleSheet.create({
   checkDone: { backgroundColor: Colors.lime, borderColor: Colors.lime },
   link: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
   linkText: { color: Colors.lime, fontWeight: '700' },
+  superset: { color: Colors.carbs, fontSize: 12, fontWeight: '800' },
+  note: { flexDirection: 'row', gap: 6, alignItems: 'flex-start', backgroundColor: Colors.cardRaised, padding: 8, borderRadius: Radius.sm },
+  rpe: { color: Colors.textFaint, fontSize: 9, fontWeight: '700' },
 });
