@@ -5,10 +5,11 @@
  * Nothing leaves the phone — these are local notifications, no server needed.
  */
 import * as Notifications from 'expo-notifications';
-import { useEffect } from 'react';
+import { router, type Href } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { addDays, fromKey, todayKey } from '@/store/dates';
+import { addDays, fromKey, startOfWeek, todayKey } from '@/store/dates';
 import { currentStreak, isLockedIn } from '@/store/logic';
 import type { AppState } from '@/store/types';
 
@@ -70,6 +71,33 @@ async function plan(state: AppState) {
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
     });
   }
+
+  // Sunday 18:00: your week in review is ready.
+  const sunday = fromKey(addDays(startOfWeek(today), 6));
+  sunday.setHours(18, 0, 0, 0);
+  if (sunday.getTime() > now) {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📊 Your week in review is ready',
+        body: 'See your workouts, active time and PRs — and share your week.',
+        data: { kind: 'reminder', url: '/review' },
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: sunday, channelId: CHANNEL },
+    });
+  }
+}
+
+/** Opens the screen a notification points to (e.g. the week review) when you tap it. */
+export function useNotificationLinks(active: boolean) {
+  const response = Platform.OS === 'web' ? null : Notifications.useLastNotificationResponse();
+  const handled = useRef<string | null>(null);
+  useEffect(() => {
+    const id = response?.notification.request.identifier;
+    const url = response?.notification.request.content.data?.url;
+    if (!active || !id || handled.current === id || typeof url !== 'string') return;
+    handled.current = id;
+    router.push(url as Href);
+  }, [active, response]);
 }
 
 /** Keeps scheduled reminders in sync with your data. Mount once, at the app root. */

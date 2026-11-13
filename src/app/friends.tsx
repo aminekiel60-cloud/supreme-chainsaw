@@ -4,16 +4,20 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
+import * as Clipboard from 'expo-clipboard';
+
 import { Avatar } from '@/components/Avatar';
 import { FormScroll } from '@/components/FormScroll';
 import { Button, Card, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { haptics } from '@/lib/haptics';
+import { INVITE_ERRORS, inviteMessage, redeemInvite } from '@/lib/invites';
 import {
   acceptFriend,
   addFriend,
-  addFriendByCode,
   getCoachLinks,
-  getMyProfile,
+  getMyInviteCode,
+  resetMyInviteCode,
   listFriendships,
   removeFriend,
   searchPeople,
@@ -23,7 +27,7 @@ import {
 } from '@/lib/social';
 
 export default function FriendsScreen() {
-  const [me, setMe] = useState<PublicProfile | null>(null);
+  const [myCode, setMyCode] = useState<string | null>(null);
   const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [coaches, setCoaches] = useState<string[]>([]);
   const [query, setQuery] = useState('');
@@ -32,8 +36,8 @@ export default function FriendsScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [profile, fs, links] = await Promise.all([getMyProfile(), listFriendships(), getCoachLinks()]);
-      setMe(profile);
+      const [inviteCode, fs, links] = await Promise.all([getMyInviteCode(), listFriendships(), getCoachLinks()]);
+      setMyCode(inviteCode);
       setFriendships(fs);
       setCoaches(links.myCoaches);
     } catch {
@@ -72,16 +76,55 @@ export default function FriendsScreen() {
   const outgoing = friendships.filter((f) => f.status === 'pending' && !f.incoming);
   const knownIds = new Set(friendships.map((f) => f.friend.id));
 
-  const invite = () =>
-    Share.share({ message: `Lock in with me on Locked in 🔒 Add me with my code: ${me?.invite_code ?? ''}\nLOCK IN. LEVEL UP.` }).catch(() => {});
+  const invite = () => {
+    if (myCode) Share.share({ message: inviteMessage(myCode) }).catch(() => {});
+  };
+
+  const copyCode = async () => {
+    if (!myCode) return;
+    await Clipboard.setStringAsync(myCode);
+    haptics.tap();
+    Alert.alert('Copied', `Your code ${myCode} is on the clipboard.`);
+  };
+
+  const resetCode = () =>
+    Alert.alert('Get a new code?', 'Your old code and the invite links you already shared stop working. Your friends stay your friends.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'New code', onPress: () => resetMyInviteCode().then(setMyCode).catch(() => Alert.alert('Could not reset your code.')) },
+    ]);
+
+  const redeem = async () => {
+    const result = await redeemInvite(code);
+    if (result.ok) {
+      setCode('');
+      haptics.success();
+      Alert.alert('You’re connected! 🎉', `You and ${result.name} are now friends.`);
+      load();
+    } else {
+      Alert.alert('Invite code', INVITE_ERRORS[result.error]);
+    }
+  };
 
   return (
     <FormScroll>
       <Card highlight style={{ gap: Spacing.md, alignItems: 'center' }}>
         <Text style={ui.statLabel}>YOUR INVITE CODE</Text>
-        <Text style={{ color: Colors.lime, fontSize: 36, fontWeight: '900', letterSpacing: 8 }}>{me?.invite_code ?? '······'}</Text>
+        <Pressable onPress={copyCode} accessibilityLabel="Copy invite code">
+          <Text style={{ color: Colors.lime, fontSize: 32, fontWeight: '900', letterSpacing: 5 }}>{myCode ?? '········'}</Text>
+        </Pressable>
+        <Text style={[ui.muted, { textAlign: 'center' }]}>
+          Share your invite link. When a friend taps it, you&apos;re connected right away — no request to accept.
+        </Text>
         <View style={{ alignSelf: 'stretch' }}>
-          <Button title="Invite friends" icon="share-social" onPress={invite} />
+          <Button title="Share invite link" icon="share-social" onPress={invite} disabled={!myCode} />
+        </View>
+        <View style={{ flexDirection: 'row', gap: Spacing.xl }}>
+          <Text onPress={copyCode} style={{ color: Colors.lime, fontWeight: '700' }}>
+            Copy code
+          </Text>
+          <Text onPress={resetCode} style={{ color: Colors.textMuted, fontWeight: '700' }}>
+            New code
+          </Text>
         </View>
       </Card>
 
@@ -115,20 +158,16 @@ export default function FriendsScreen() {
         <View style={{ flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' }}>
           <TextInput
             style={[ui.input, { flex: 1 }]}
-            placeholder="Or enter an invite code"
+            placeholder="Or enter a friend’s invite code"
             placeholderTextColor={Colors.textFaint}
             autoCapitalize="characters"
             value={code}
             onChangeText={setCode}
           />
           <Pressable
-            disabled={code.trim().length < 6}
-            style={[s.pill, { paddingVertical: 14 }, code.trim().length < 6 && { opacity: 0.4 }]}
-            onPress={run(async () => {
-              const name = await addFriendByCode(code);
-              setCode('');
-              return name;
-            }, 'Friend request sent!')}>
+            disabled={code.trim().length < 8}
+            style={[s.pill, { paddingVertical: 14 }, code.trim().length < 8 && { opacity: 0.4 }]}
+            onPress={redeem}>
             <Text style={s.pillText}>Add</Text>
           </Pressable>
         </View>

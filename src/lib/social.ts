@@ -12,7 +12,6 @@ import { db } from './supabase';
 export type PublicProfile = {
   id: string;
   display_name: string;
-  invite_code: string;
   week_start: string | null;
   week_points: number;
   streak: number;
@@ -102,19 +101,18 @@ export async function listFriendships(): Promise<Friendship[]> {
     .filter((f) => f.friend);
 }
 
-/** Send a friend request using someone's invite code. Returns their name. */
-export async function addFriendByCode(code: string): Promise<string> {
-  const me = await myId();
-  const clean = code.trim().toUpperCase();
-  const { data: friend } = await db().from('profiles').select('id, display_name').eq('invite_code', clean).maybeSingle();
-  if (!friend) throw new Error('No one found with that code. Check it and try again.');
-  if (friend.id === me) throw new Error("That's your own code 🙂");
-  const { error } = await db().from('friendships').insert({ requester: me, addressee: friend.id });
-  if (error) {
-    if (error.code === '23505') throw new Error(`You and ${friend.display_name} are already connected.`);
-    throw error;
-  }
-  return friend.display_name;
+/** Your private invite code (only you can read it). */
+export async function getMyInviteCode(): Promise<string> {
+  const { data, error } = await db().from('invite_codes').select('code').eq('user_id', await myId()).single();
+  if (error) throw error;
+  return data.code;
+}
+
+/** Get a new invite code; the old code and old invite links stop working. */
+export async function resetMyInviteCode(): Promise<string> {
+  const { data, error } = await db().rpc('reset_invite_code');
+  if (error) throw error;
+  return data as string;
 }
 
 export async function acceptFriend(id: number) {
@@ -239,6 +237,7 @@ export async function shareRecentActivity(state: AppState) {
       const sets = w.exercises.reduce((t, e) => t + e.sets.length, 0);
       stats.unshift({ label: 'Exercises', value: String(w.exercises.length) }, { label: 'Sets', value: String(sets) });
     }
+    if (w.prs?.length) stats.push({ label: 'PRs', value: `🏆 ${w.prs.length}` });
     posts.push({
       user_id: me,
       ref: `workout:${w.id}`,

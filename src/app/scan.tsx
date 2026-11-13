@@ -200,7 +200,10 @@ export default function ScanScreen() {
         icon="checkmark"
         disabled={g <= 0}
         onPress={() => {
-          dispatch({ type: 'addFood', entry: { name: `${product.name} (${g} g)`, meal, date: params.date ?? todayKey(), ...n } });
+          dispatch({
+            type: 'addFood',
+            entry: { name: product.name, meal, date: params.date ?? todayKey(), ...n, base: { amount: g, unit: 'g', ...product.per100 } },
+          });
           router.dismissTo('/nutrition');
         }}
       />

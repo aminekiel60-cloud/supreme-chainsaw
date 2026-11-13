@@ -77,7 +77,18 @@ export default function PhotoScreen() {
 
   const addAll = () => {
     for (const r of rows.filter((x) => x.include)) {
-      dispatch({ type: 'addFood', entry: { name: `${r.name} (${r.gramsText} g)`, meal, date: params.date ?? todayKey(), ...scaled(r) } });
+      const grams = Number(r.gramsText.replace(',', '.')) || 0;
+      const per100 = (v: number) => (r.grams > 0 ? Math.round((v / r.grams) * 1000) / 10 : 0);
+      dispatch({
+        type: 'addFood',
+        entry: {
+          name: r.name,
+          meal,
+          date: params.date ?? todayKey(),
+          ...scaled(r),
+          base: { amount: grams, unit: 'g', kcal: per100(r.kcal), protein: per100(r.protein), carbs: per100(r.carbs), fat: per100(r.fat) },
+        },
+      });
     }
     router.dismissTo('/nutrition');
   };

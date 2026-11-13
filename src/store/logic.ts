@@ -3,7 +3,7 @@
  * These are plain functions (no UI), so they are easy to read and change.
  */
 import { addDays, startOfWeek, todayKey } from './dates';
-import type { Activity, AppState, DateKey, GoalType, Goals, Habit, HabitId, Profile, Workout, WorkoutType } from './types';
+import type { Activity, AppState, DateKey, FoodEntry, GoalType, Goals, Habit, HabitId, Profile, Workout, WorkoutType } from './types';
 
 export const HABITS: Habit[] = [
   { id: 'protein', title: 'Hit protein goal', kind: 'auto' },
@@ -228,4 +228,26 @@ export function calculateGoals(p: Profile): Pick<Goals, 'kcal' | 'protein' | 'ca
   const fat = Math.round(p.weightKg * 0.8);
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
   return { kcal, protein, carbs, fat };
+}
+
+type Base = NonNullable<FoodEntry['base']>;
+
+/** Totals for `amount` of a food, from its base values (per 100 g, or per serving). */
+export function fromBase(base: Omit<Base, 'amount'>, amount: number) {
+  const f = base.unit === 'g' ? amount / 100 : amount;
+  const r1 = (n: number) => Math.round(n * f * 10) / 10;
+  return { kcal: Math.round(base.kcal * f), protein: r1(base.protein), carbs: r1(base.carbs), fat: r1(base.fat) };
+}
+
+/** The base of an entry; older entries without one count as "1 serving". */
+export function baseOf(entry: FoodEntry): Base {
+  return entry.base ?? { amount: 1, unit: 'serving', kcal: entry.kcal, protein: entry.protein, carbs: entry.carbs, fat: entry.fat };
+}
+
+/** "150 g", "2 servings" or "" (for exactly one serving). */
+export function amountLabel(entry: FoodEntry): string {
+  const b = entry.base;
+  if (!b) return '';
+  if (b.unit === 'g') return `${b.amount} g`;
+  return b.amount === 1 ? '' : `${b.amount} servings`;
 }

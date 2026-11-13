@@ -48,8 +48,13 @@ export default function HomeScreen() {
       <ActiveWorkoutBanner />
 
       <FadeInCard index={0}>
-        <Card style={{ paddingVertical: 12 }}>
+        <Card style={{ paddingVertical: 12, gap: 10 }}>
           <WeekStrip />
+          <Pressable onPress={() => router.push('/review')} style={s.reviewLink} hitSlop={6}>
+            <Ionicons name="stats-chart" size={14} color={Colors.lime} />
+            <Text style={{ color: Colors.lime, fontWeight: '700' }}>Week in review</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.lime} />
+          </Pressable>
         </Card>
       </FadeInCard>
 
@@ -207,4 +212,5 @@ function Macro({ label, value, goal, color }: { label: string; value: number; go
 const s = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   empty: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  reviewLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
 });

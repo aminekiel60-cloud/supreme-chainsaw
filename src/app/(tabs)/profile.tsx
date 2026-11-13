@@ -106,6 +106,7 @@ export default function ProfileTab() {
       <FadeInCard index={4}>
         <Card style={{ padding: 0 }}>
           <Row icon="calendar" title="Calendar" detail="Every day, workout and streak" onPress={() => router.push('/calendar')} />
+          <Row icon="stats-chart" title="Week in review" detail="Your week in numbers, ready to share" onPress={() => router.push('/review')} />
           <Row icon="scale" title="Body weight" detail="Log your weight and see the trend" onPress={() => router.push('/body-weight')} />
           <Row icon="options" title="Your goals" detail="Calories, macros, steps, water, sleep" onPress={() => router.push('/goals')} />
           {cloudEnabled && <Row icon="people" title="Friends" detail="Add friends, requests" onPress={() => router.push('/friends')} />}

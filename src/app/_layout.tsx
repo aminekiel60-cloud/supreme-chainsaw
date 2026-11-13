@@ -11,7 +11,8 @@ import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { useCelebrations } from '@/lib/celebrations';
 import { useHealthSync } from '@/lib/health';
-import { useStreakReminders } from '@/lib/reminders';
+import { usePendingInvite } from '@/lib/invites';
+import { useNotificationLinks, useStreakReminders } from '@/lib/reminders';
 import { cloudEnabled } from '@/lib/supabase';
 import { StoreProvider, useStore } from '@/store/store';
 
@@ -52,6 +53,8 @@ function RootStack() {
   const signedIn = !cloudEnabled || auth.session !== null;
   const onboarded = state.profile !== null;
   useStreakReminders(state, ready && signedIn);
+  useNotificationLinks(ready && signedIn && onboarded);
+  usePendingInvite(ready && signedIn && onboarded);
   useHealthSync(ready && signedIn && state.settings.healthConnect, dispatch);
   const celebration = useCelebrations(state, ready && signedIn && onboarded, dispatch);
   const [showIntro, setShowIntro] = useState(true);
@@ -89,6 +92,7 @@ function RootStack() {
           <Stack.Screen name="exercise/[name]" options={{ title: 'Exercise' }} />
           <Stack.Screen name="routines" options={{ title: 'Routines' }} />
           <Stack.Screen name="body-weight" options={{ title: 'Body weight' }} />
+          <Stack.Screen name="review" options={{ title: 'Week in review' }} />
           <Stack.Screen name="photo" options={{ presentation: 'modal', title: 'AI food photo' }} />
           <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan barcode' }} />
           <Stack.Screen name="post/[id]" options={{ presentation: 'modal', title: 'Comments' }} />

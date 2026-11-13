@@ -10,7 +10,7 @@ import { Card, ProgressBar, Screen, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 import { addDays, prettyDate, todayKey } from '@/store/dates';
-import { dayTotals } from '@/store/logic';
+import { amountLabel, dayTotals } from '@/store/logic';
 import { useStore } from '@/store/store';
 import type { Meal } from '@/store/types';
 
@@ -33,7 +33,7 @@ export default function FoodScreen() {
   const copyFromYesterday = (meal: Meal) => {
     haptics.add();
     for (const f of state.food.filter((x) => x.date === yesterday && x.meal === meal)) {
-      dispatch({ type: 'addFood', entry: { name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, meal, date: day } });
+      dispatch({ type: 'addFood', entry: { name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, base: f.base, meal, date: day } });
     }
   };
 
@@ -107,7 +107,7 @@ export default function FoodScreen() {
                       {f.name}
                     </Text>
                     <Text style={ui.muted}>
-                      P {Math.round(f.protein)}g · C {Math.round(f.carbs)}g · F {Math.round(f.fat)}g
+                      {amountLabel(f) ? `${amountLabel(f)} · ` : ''}P {Math.round(f.protein)}g · C {Math.round(f.carbs)}g · F {Math.round(f.fat)}g
                     </Text>
                   </View>
                   <Text style={{ color: Colors.text, fontWeight: '800' }}>{Math.round(f.kcal)}</Text>

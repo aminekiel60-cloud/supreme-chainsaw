@@ -38,7 +38,9 @@ export default function AddFoodScreen() {
   const [fat, setFat] = useState('');
 
   const add = (food: QuickFood) => {
-    dispatch({ type: 'addFood', entry: { ...food, meal, date } });
+    // Keep the base values, so the amount can be changed later.
+    const base = food.base ?? { amount: 1, unit: 'serving' as const, kcal: food.kcal, protein: food.protein, carbs: food.carbs, fat: food.fat };
+    dispatch({ type: 'addFood', entry: { ...food, base, meal, date } });
     router.back();
   };
 
@@ -131,10 +133,10 @@ function frequentFoods(food: FoodEntry[]): QuickFood[] {
   const since = addDays(todayKey(), -30);
   const counts = new Map<string, { food: QuickFood; n: number }>();
   for (const f of food.filter((x) => x.date >= since)) {
-    const key = `${f.name}|${f.kcal}`;
+    const key = f.name;
     const hit = counts.get(key);
     if (hit) hit.n++;
-    else counts.set(key, { food: { name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat }, n: 1 });
+    else counts.set(key, { food: { name: f.name, kcal: f.kcal, protein: f.protein, carbs: f.carbs, fat: f.fat, base: f.base }, n: 1 });
   }
   return [...counts.values()]
     .filter((c) => c.n >= 2)

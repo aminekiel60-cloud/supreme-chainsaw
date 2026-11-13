@@ -3,7 +3,15 @@
  * Values per typical portion. Later this is replaced by a food database
  * (e.g. Open Food Facts) plus barcode scanning and AI photo recognition.
  */
-export type QuickFood = { name: string; kcal: number; protein: number; carbs: number; fat: number };
+export type QuickFood = {
+  name: string;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  /** Set when the food came from an earlier entry, so its amount carries over */
+  base?: { amount: number; unit: 'g' | 'serving'; kcal: number; protein: number; carbs: number; fat: number };
+};
 
 export const QUICK_FOODS: QuickFood[] = [
   { name: 'Oatmeal (60 g) with milk', kcal: 330, protein: 13, carbs: 48, fat: 9 },
