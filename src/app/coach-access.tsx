@@ -38,7 +38,7 @@ export default function CoachScreen() {
         </Card>
       )}
       {links?.myClients.map((c) => (
-        <Pressable key={c.id} onPress={() => router.push({ pathname: '/coach/[id]', params: { id: c.id, name: c.display_name } })}>
+        <Pressable key={c.id} onPress={() => router.push({ pathname: '/client/[id]', params: { id: c.id, name: c.display_name } })}>
           <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
             <Avatar name={c.display_name} url={c.avatar_url} level={c.level} />
             <View style={{ flex: 1 }}>

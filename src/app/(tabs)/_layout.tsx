@@ -1,35 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { Tabs } from 'expo-router/js-tabs';
 
-import type { IconName } from '@/components/ui';
-import { Colors } from '@/constants/theme';
-
-function icon(name: IconName) {
-  return ({ color, size }: { color: ColorValue; size: number }) => (
-    <Ionicons name={name} color={color as string} size={size} />
-  );
-}
+import { TabBar } from '@/components/layout';
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-        tabBarActiveTintColor: Colors.lime,
-        tabBarInactiveTintColor: Colors.textFaint,
-        tabBarStyle: {
-          backgroundColor: '#0B0B0B',
-          borderTopColor: Colors.border,
-        },
-        tabBarLabelStyle: { fontWeight: '600' },
-      }}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: icon('home') }} />
-      <Tabs.Screen name="nutrition" options={{ title: 'Food', tabBarIcon: icon('nutrition') }} />
-      <Tabs.Screen name="training" options={{ title: 'Train', tabBarIcon: icon('barbell') }} />
-      <Tabs.Screen name="feed" options={{ title: 'Feed', tabBarIcon: icon('people') }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('person-circle') }} />
+    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, animation: 'fade' }}>
+      <Tabs.Screen name="index" options={{ title: 'Today' }} />
+      <Tabs.Screen name="coach" options={{ title: 'Coach' }} />
+      <Tabs.Screen name="you" options={{ title: 'You' }} />
     </Tabs>
   );
 }

@@ -142,6 +142,7 @@ export default function ProfileScreen() {
       />
 
       <Button title="Privacy policy" icon="shield-checkmark" variant="ghost" onPress={() => router.push('/privacy')} />
+      {cloudEnabled && <Button title="Blocked people" icon="hand-left-outline" variant="ghost" onPress={() => router.push('/blocked')} />}
 
       {cloudEnabled ? (
         <Card style={{ gap: Spacing.md }}>

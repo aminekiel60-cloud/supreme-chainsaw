@@ -28,11 +28,21 @@ export type Friendship = {
   friend: PublicProfile;
 };
 
+export type PostKind = 'workout' | 'locked_in' | 'achievement' | 'photo' | 'meal' | 'run' | 'pr';
+export type Visibility = 'friends' | 'public';
+
 export type Post = {
   id: string;
   user_id: string;
-  kind: 'workout' | 'locked_in' | 'achievement';
+  kind: PostKind;
   title: string;
+  caption: string | null;
+  visibility: Visibility;
+  /** The author is one of your friends */
+  isFriend: boolean;
+  /** The author is in a live workout right now */
+  authorTraining: boolean;
+  latestComment: { name: string; body: string } | null;
   stats: { label: string; value: string }[];
   created_at: string;
   author: string;
@@ -55,18 +65,20 @@ export type ChallengeMetric = 'run_km' | 'workouts' | 'locked_in_days' | 'protei
 export type Challenge = {
   id: string;
   creator: string;
+  visibility: Visibility;
   title: string;
   metric: ChallengeMetric;
   target: number;
   start_date: string;
   end_date: string;
-  members: { user_id: string; name: string; progress: number }[];
+  members: { user_id: string; name: string; avatar: string | null; progress: number }[];
 };
 
 async function myId(): Promise<string> {
-  const { data } = await db().auth.getUser();
-  if (!data.user) throw new Error('Not signed in');
-  return data.user.id;
+  // The saved session is enough here (no network call); the database checks the token anyway.
+  const { data } = await db().auth.getSession();
+  if (!data.session) throw new Error('Not signed in');
+  return data.session.user.id;
 }
 
 /** Points only count for the current week. */
@@ -127,28 +139,39 @@ export async function removeFriend(id: number) {
 
 // ───────────── Feed ─────────────
 
-export async function getFeed(): Promise<Post[]> {
+export type FeedScope = 'following' | 'for_you';
+
+/**
+ * One page of the feed. 'following' is you and your friends, 'for_you' is
+ * public posts from everyone else. Pass the created_at of the last post you
+ * have as `before` to load older posts.
+ */
+export async function getFeed(scope: FeedScope = 'following', before?: string): Promise<Post[]> {
   const me = await myId();
-  // One database call (see supabase/migrations/…feed_rpc.sql); RLS decides what you can see.
-  const { data, error } = await db().rpc('get_feed', { p_limit: 50 });
+  const { data, error } = await db().rpc('get_feed_v2', { p_scope: scope, p_limit: 25, p_before: before ?? null });
   if (error) throw error;
   type Row = {
     id: string;
     user_id: string;
-    kind: Post['kind'];
+    kind: PostKind;
     title: string;
+    caption: string | null;
     stats: Post['stats'] | null;
     created_at: string;
     workout_type: WorkoutType | null;
     photo_path: string | null;
+    visibility: Visibility;
     tagged: string[] | null;
     tagged_names: string[] | null;
     author_name: string | null;
     author_avatar: string | null;
     author_level: number | null;
+    author_training: boolean;
+    is_friend: boolean;
     likes: number;
     liked_by_me: boolean;
     comments: number;
+    latest_comment: { name: string; body: string } | null;
   };
   const rows = (data ?? []) as Row[];
   const photoUrls = await workoutPhotoUrls(rows.map((p) => p.photo_path).filter((x): x is string => Boolean(x)));
@@ -157,9 +180,14 @@ export async function getFeed(): Promise<Post[]> {
     user_id: p.user_id,
     kind: p.kind,
     title: p.title,
+    caption: p.caption,
+    visibility: p.visibility,
+    isFriend: p.is_friend,
+    authorTraining: p.author_training,
+    latestComment: p.latest_comment,
     stats: p.stats ?? [],
     created_at: p.created_at,
-    author: p.user_id === me ? 'You' : p.author_name ?? 'Friend',
+    author: p.user_id === me ? 'You' : p.author_name ?? 'Athlete',
     authorAvatar: p.author_avatar,
     authorLevel: p.author_level ?? 1,
     workoutType: p.workout_type,
@@ -169,6 +197,88 @@ export async function getFeed(): Promise<Post[]> {
     likedByMe: p.liked_by_me,
     comments: p.comments,
   }));
+}
+
+/** Post a photo (or a meal) with a caption. Returns the new post's id. */
+export async function createPost(input: {
+  kind: 'photo' | 'meal';
+  title: string;
+  caption: string;
+  photoUri: string | null;
+  visibility: Visibility;
+  stats?: Post['stats'];
+}): Promise<string> {
+  const me = await myId();
+  const ref = `post:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  let photo_path: string | null = null;
+  if (input.photoUri) photo_path = await uploadPhoto('workout-photos', `${me}/${ref.slice(5)}.jpg`, input.photoUri, 1080);
+  const { data, error } = await db()
+    .from('posts')
+    .insert({
+      user_id: me,
+      ref,
+      kind: input.kind,
+      title: input.title.trim() || (input.kind === 'meal' ? 'Meal' : 'Photo'),
+      caption: input.caption.trim() || null,
+      stats: input.stats ?? [],
+      photo_path,
+      visibility: input.visibility,
+    })
+    .select('id')
+    .single();
+  if (error) {
+    if (photo_path) db().storage.from('workout-photos').remove([photo_path]).catch(() => {});
+    throw error;
+  }
+  return data.id;
+}
+
+export async function setPostVisibility(postId: string, visibility: Visibility) {
+  const { error } = await db().from('posts').update({ visibility }).eq('id', postId);
+  if (error) throw error;
+}
+
+export async function deletePost(postId: string) {
+  const { data } = await db().from('posts').select('photo_path').eq('id', postId).maybeSingle();
+  const { error } = await db().from('posts').delete().eq('id', postId);
+  if (error) throw error;
+  if (data?.photo_path) db().storage.from('workout-photos').remove([data.photo_path]).catch(() => {});
+}
+
+export type ReportReason = 'spam' | 'nudity' | 'hate' | 'harassment' | 'violence' | 'other';
+
+/** Report a post. After 3 reports it leaves the public feed until it's reviewed. */
+export async function reportPost(postId: string, reason: ReportReason) {
+  const { error } = await db().rpc('report_post', { p_post: postId, p_reason: reason });
+  if (error) throw error;
+}
+
+/** Block someone: you stop seeing each other's posts and comments, and a friendship ends. */
+export async function blockUser(userId: string) {
+  const me = await myId();
+  const { error } = await db().from('blocks').insert({ blocker: me, blocked: userId });
+  if (error && error.code !== '23505') throw error;
+}
+
+export async function unblockUser(userId: string) {
+  const me = await myId();
+  const { error } = await db().from('blocks').delete().eq('blocker', me).eq('blocked', userId);
+  if (error) throw error;
+}
+
+export async function listBlocked(): Promise<PublicProfile[]> {
+  const { data, error } = await db().from('blocks').select('blocked');
+  if (error) throw error;
+  const ids = data.map((b) => b.blocked);
+  if (ids.length === 0) return [];
+  const { data: people } = await db().from('profiles').select('*').in('id', ids);
+  return people ?? [];
+}
+
+/** Tell friends you're training right now (or stop). */
+export async function setTrainingNow(active: boolean) {
+  const me = await myId();
+  await db().from('profiles').update({ training_since: active ? new Date().toISOString() : null }).eq('id', me);
 }
 
 export async function setLiked(postId: string, liked: boolean) {
@@ -312,10 +422,14 @@ export async function shareRecentActivity(state: AppState) {
 // ───────────── Challenges ─────────────
 
 export const CHALLENGE_PRESETS: { metric: ChallengeMetric; title: string; target: number; unit: string }[] = [
-  { metric: 'run_km', title: 'Run 50 km', target: 50, unit: 'km' },
   { metric: 'workouts', title: '12 workouts', target: 12, unit: 'workouts' },
+  { metric: 'workouts', title: '20 workouts', target: 20, unit: 'workouts' },
+  { metric: 'run_km', title: 'Run 50 km', target: 50, unit: 'km' },
+  { metric: 'run_km', title: 'Run 100 km', target: 100, unit: 'km' },
   { metric: 'locked_in_days', title: 'Locked in 20 days', target: 20, unit: 'days' },
+  { metric: 'locked_in_days', title: 'Locked in every day', target: 30, unit: 'days' },
   { metric: 'protein_days', title: 'Protein goal 14 days', target: 14, unit: 'days' },
+  { metric: 'protein_days', title: 'Protein goal 25 days', target: 25, unit: 'days' },
 ];
 
 /** Your progress on a challenge, calculated from your own log. */
@@ -341,7 +455,7 @@ export function myProgress(state: AppState, c: Pick<Challenge, 'metric' | 'start
 export async function listChallenges(): Promise<Challenge[]> {
   const { data, error } = await db()
     .from('challenges')
-    .select('*, challenge_members(user_id, progress, profiles(display_name))')
+    .select('*, challenge_members(user_id, progress, profiles(display_name, avatar_url))')
     .gte('end_date', addDays(todayKey(), -7))
     .order('end_date');
   if (error) throw error;
@@ -350,26 +464,38 @@ export async function listChallenges(): Promise<Challenge[]> {
   return (data as any[]).map((c) => ({
     ...c,
     members: c.challenge_members
-      .map((m: { user_id: string; progress: number; profiles: { display_name: string } | null }) => ({
+      .map((m: { user_id: string; progress: number; profiles: { display_name: string; avatar_url: string | null } | null }) => ({
         user_id: m.user_id,
-        name: m.user_id === me ? 'You' : m.profiles?.display_name ?? 'Friend',
+        name: m.user_id === me ? 'You' : m.profiles?.display_name ?? 'Athlete',
+        avatar: m.profiles?.avatar_url ?? null,
         progress: Number(m.progress),
       }))
       .sort((a: { progress: number }, b: { progress: number }) => b.progress - a.progress),
   }));
 }
 
-/** Start a 30-day challenge and join it yourself; friends can join from their app. */
-export async function createChallenge(preset: (typeof CHALLENGE_PRESETS)[number]) {
+/** Start a 30-day challenge and join it yourself. Friends (or everyone, when public) can join. */
+export async function createChallenge(preset: (typeof CHALLENGE_PRESETS)[number], visibility: Visibility = 'friends') {
   const me = await myId();
   const start = todayKey();
   const { data, error } = await db()
     .from('challenges')
-    .insert({ creator: me, title: preset.title, metric: preset.metric, target: preset.target, start_date: start, end_date: addDays(start, 29) })
+    .insert({ creator: me, title: preset.title, metric: preset.metric, target: preset.target, start_date: start, end_date: addDays(start, 29), visibility })
     .select('id')
     .single();
   if (error) throw error;
   await joinChallenge(data.id);
+}
+
+export async function leaveChallenge(id: string) {
+  const me = await myId();
+  const { error } = await db().from('challenge_members').delete().eq('challenge_id', id).eq('user_id', me);
+  if (error) throw error;
+}
+
+export async function deleteChallenge(id: string) {
+  const { error } = await db().from('challenges').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function joinChallenge(id: string) {

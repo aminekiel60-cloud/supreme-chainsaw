@@ -15,7 +15,7 @@ export const HABITS: Habit[] = [
 ];
 
 /** Default habit targets; you can change them in Goals. */
-export const DEFAULT_HABIT_GOALS = { steps: 10000, waterMl: 2500, sleepByHour: 23 };
+export const DEFAULT_HABIT_GOALS = { steps: 10000, waterMl: 2500, sleepByHour: 23, workoutsPerWeek: 4, trainingDayKcal: 0 };
 
 /** The habit's label with your own targets, e.g. "8,000 steps" or "Drink 2.5 L water". */
 export function habitTitle(state: AppState, id: HabitId): string {
@@ -58,6 +58,21 @@ export function workoutsOn(state: AppState, date: DateKey) {
   return state.workouts.filter((w) => w.date === date);
 }
 
+/**
+ * Your nutrition goals for one day. On a day you train, the extra
+ * "training day" calories are added (as carbs).
+ */
+export function goalsFor(state: AppState, date: DateKey) {
+  const extra = state.goals.trainingDayKcal > 0 && workoutsOn(state, date).length > 0 ? state.goals.trainingDayKcal : 0;
+  return {
+    kcal: state.goals.kcal + extra,
+    protein: state.goals.protein,
+    carbs: state.goals.carbs + Math.round(extra / 4),
+    fat: state.goals.fat,
+    trainingDay: extra > 0,
+  };
+}
+
 export function habitDone(state: AppState, date: DateKey, id: HabitId): boolean {
   const totals = dayTotals(state, date);
   switch (id) {
@@ -65,7 +80,7 @@ export function habitDone(state: AppState, date: DateKey, id: HabitId): boolean 
       return totals.protein >= state.goals.protein;
     case 'calories':
       // Only counts once you actually logged food that day.
-      return totals.kcal > 0 && totals.kcal <= state.goals.kcal;
+      return totals.kcal > 0 && totals.kcal <= goalsFor(state, date).kcal;
     case 'workout':
       return workoutsOn(state, date).length > 0;
     case 'steps':

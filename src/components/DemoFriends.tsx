@@ -2,7 +2,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
-import { Badge, Button, Card, ProgressBar, Screen, SectionTitle, styles as ui } from '@/components/ui';
+import { StackPage } from '@/components/layout';
+import { Badge, Button, Card, ProgressBar, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing, Type } from '@/constants/theme';
 import { DEMO_CHALLENGES, DEMO_FEED, DEMO_FRIENDS } from '@/data/friends';
 import { currentStreak, weekPoints } from '@/store/logic';
@@ -17,10 +18,11 @@ export function DemoFriends() {
   ].sort((a, b) => b.weekPoints - a.weekPoints);
 
   const invite = () =>
-    Share.share({ message: 'Lock in with me on Locked in — LOCK IN. LEVEL UP.' }).catch(() => {});
+    Share.share({ message: 'Lock in with me on Locked in. Lock in. Level up.' }).catch(() => {});
 
   return (
-    <Screen right={<Badge text="DEMO FRIENDS" />}>
+    <StackPage>
+      <Badge text="DEMO FRIENDS" />
       <Text style={[Type.title, { color: Colors.text }]}>Friends</Text>
 
       <Card style={{ gap: Spacing.md }}>
@@ -98,7 +100,7 @@ export function DemoFriends() {
       })}
 
       <Button title="Invite friends" icon="person-add" variant="ghost" onPress={invite} />
-    </Screen>
+    </StackPage>
   );
 }
 

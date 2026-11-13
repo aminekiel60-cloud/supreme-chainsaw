@@ -28,6 +28,10 @@ export type ExerciseSet = {
   warmup?: boolean;
   /** Ticked off during a live workout */
   done?: boolean;
+  /** Drop set or a set taken to failure (warm-ups use `warmup`) */
+  kind?: 'drop' | 'failure';
+  /** How hard it felt, 6 (easy) to 10 (nothing left) */
+  rpe?: number;
 };
 
 export type Exercise = {
@@ -36,6 +40,10 @@ export type Exercise = {
   /** Rest between sets for this exercise, in seconds (else the app default) */
   restSeconds?: number;
   note?: string;
+  /** Exercises with the same letter are done back to back as a superset */
+  superset?: string;
+  /** Reps to aim for in every set (from a program) */
+  targetReps?: number;
 };
 
 /** A personal record set during a workout. */
@@ -68,6 +76,8 @@ export type ActiveWorkout = {
   restNotificationId?: string;
   photoUri?: string;
   tagged?: { id: string; name: string }[];
+  /** "programId:dayId" when started from a program */
+  programDay?: string;
 };
 
 export type MuscleGroup =
@@ -110,7 +120,40 @@ export type Workout = {
   prs?: PersonalRecord[];
   /** Started from this routine */
   routineId?: string;
+  /** GPS route of a tracked run, ride or walk: [latitude, longitude] points */
+  route?: [number, number][];
+  /** Seconds per full kilometre */
+  splits?: number[];
+  /** Day of a training program this workout was */
+  programDay?: string;
 };
+
+/** Body measurements in cm (body fat in %). */
+export type Measurement = {
+  date: DateKey;
+  waist?: number;
+  chest?: number;
+  arms?: number;
+  hips?: number;
+  thighs?: number;
+  bodyFat?: number;
+};
+
+/** A progress photo stored only on this phone. */
+export type ProgressPhoto = { id: string; date: DateKey; uri: string; pose: 'front' | 'side' | 'back' };
+
+/** Foods you eat together, logged in one tap. With servings > 1 it's a recipe: one log is one serving. */
+export type SavedMeal = {
+  id: string;
+  name: string;
+  servings: number;
+  items: { name: string; kcal: number; protein: number; carbs: number; fat: number }[];
+};
+
+export type GroceryItem = { id: string; text: string; done: boolean };
+
+/** The training program you follow, and which day is next. */
+export type ActiveProgram = { id: string; startedAt: DateKey; nextDay: number };
 
 /** A food you created yourself, reusable from Add food. Values per portion. */
 export type MyFood = {
@@ -136,6 +179,10 @@ export type Goals = {
   waterMl: number;
   /** "Asleep by" hour, e.g. 23 = asleep by 23:00 */
   sleepByHour: number;
+  /** Training days per week you aim for */
+  workoutsPerWeek: number;
+  /** Extra calories (from carbs) on days you train */
+  trainingDayKcal: number;
 };
 
 /**
@@ -222,4 +269,13 @@ export type AppState = {
   checks: Record<DateKey, HabitId[]>;
   /** Social feed post ids you liked */
   likes: string[];
+  measurements: Measurement[];
+  progressPhotos: ProgressPhoto[];
+  savedMeals: SavedMeal[];
+  grocery: GroceryItem[];
+  program: ActiveProgram | null;
+  /** Notes per exercise, shown every time you do it */
+  exerciseNotes: Record<string, string>;
+  /** Your profile picture (copy of the one in your account), for the header */
+  avatarUrl: string | null;
 };

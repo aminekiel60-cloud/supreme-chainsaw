@@ -13,6 +13,7 @@ import { useCelebrations } from '@/lib/celebrations';
 import { useHealthSync } from '@/lib/health';
 import { usePendingInvite } from '@/lib/invites';
 import { useNotificationLinks, useStreakReminders } from '@/lib/reminders';
+import { setTrainingNow } from '@/lib/social';
 import { cloudEnabled } from '@/lib/supabase';
 import { StoreProvider, useStore } from '@/store/store';
 
@@ -64,6 +65,12 @@ function RootStack() {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
 
+  // Friends see "Training now" while you're in a live workout.
+  const training = Boolean(state.activeWorkout);
+  useEffect(() => {
+    if (ready && cloudEnabled && auth.session) setTrainingNow(training).catch(() => {});
+  }, [training, ready, auth.session]);
+
   if (!ready) return null;
 
   return (
@@ -103,8 +110,22 @@ function RootStack() {
           <Stack.Screen name="goals" options={{ presentation: 'modal', title: 'Your goals' }} />
           <Stack.Screen name="my-food" options={{ presentation: 'modal', title: 'Create food' }} />
           <Stack.Screen name="friends" options={{ title: 'Friends' }} />
-          <Stack.Screen name="coach" options={{ title: 'Coach' }} />
-          <Stack.Screen name="coach/[id]" options={{ title: 'Coach' }} />
+          <Stack.Screen name="coach-access" options={{ title: 'Coach access' }} />
+          <Stack.Screen name="client/[id]" options={{ title: 'Your client' }} />
+          <Stack.Screen name="nutrition" options={{ title: 'Food diary' }} />
+          <Stack.Screen name="feed" options={{ title: 'Feed' }} />
+          <Stack.Screen name="new-post" options={{ presentation: 'modal', title: 'New post' }} />
+          <Stack.Screen name="programs" options={{ title: 'Programs' }} />
+          <Stack.Screen name="tools" options={{ title: 'Calculators' }} />
+          <Stack.Screen name="body" options={{ title: 'Body' }} />
+          <Stack.Screen name="grocery" options={{ title: 'Grocery list' }} />
+          <Stack.Screen name="meals" options={{ presentation: 'modal', title: 'Saved meals' }} />
+          <Stack.Screen name="run" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="weekly-coach" options={{ title: 'Weekly coach' }} />
+          <Stack.Screen name="blocked" options={{ title: 'Blocked people' }} />
+          <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
+          <Stack.Screen name="history" options={{ title: 'All workouts' }} />
+          <Stack.Screen name="records" options={{ title: 'Personal records' }} />
           <Stack.Screen name="workout/[id]" options={{ title: 'Workout' }} />
           <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
           <Stack.Screen name="badges" options={{ title: 'Badges' }} />

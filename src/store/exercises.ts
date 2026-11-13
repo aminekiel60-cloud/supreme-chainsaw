@@ -85,19 +85,31 @@ export function describeRecord(pr: PersonalRecord): string {
 }
 
 /**
- * Progressive overload hint: if every working set last time hit 8+ reps,
- * suggest a bit more weight; otherwise repeat last time.
+ * Progressive overload hint: if every working set last time reached the
+ * target reps (8 unless a program says otherwise), suggest a bit more weight.
+ * Otherwise repeat last time and add reps.
  */
-export function suggestNext(state: AppState, name: string): { sets: ExerciseSet[]; hint: string } | null {
+export function suggestNext(
+  state: AppState,
+  name: string,
+  target = 8,
+  step?: number,
+): { sets: ExerciseSet[]; hint: string; up: boolean } | null {
   const last = exerciseHistory(state, name)[0];
   if (!last) return null;
   const sets = working(last.sets);
-  if (sets.length === 0) return null;
-  const allStrong = sets.every((s) => s.reps >= 8);
-  const step = libraryExercise(name)?.equipment === 'dumbbell' ? 2 : 2.5;
-  return allStrong
-    ? { sets: sets.map((s) => ({ reps: s.reps, weight: s.weight + step })), hint: `All sets hit 8+ reps last time — try +${step} kg` }
-    : { sets: sets.map((s) => ({ reps: s.reps, weight: s.weight })), hint: 'Match last time, then add reps' };
+  if (sets.length === 0 || sets.every((s) => s.weight === 0)) return null;
+  const allStrong = sets.every((s) => s.reps >= target);
+  const add = step ?? (libraryExercise(name)?.equipment === 'dumbbell' ? 2 : 2.5);
+  return allStrong && add > 0
+    ? { sets: sets.map((s) => ({ reps: Math.max(s.reps, target), weight: s.weight + add })), hint: `You hit ${target} reps in every set last time. Try ${add} kg more.`, up: true }
+    : { sets: sets.map((s) => ({ reps: s.reps, weight: s.weight })), hint: 'Match last time, then try for one more rep.', up: false };
+}
+
+/** Lower-body exercises get the bigger weight step in programs. */
+export function isLowerBody(state: AppState, name: string) {
+  const m = muscleOf(state, name);
+  return m === 'quads' || m === 'hamstrings' || m === 'glutes' || m === 'calves';
 }
 
 /** Working sets per muscle group this week. */

@@ -1,16 +1,17 @@
-/** FOOD — your food diary per day: calories, macros and meals. Tap an entry to edit it. */
+/** FOOD DIARY: calories, macros and meals per day. Tap an entry to change it. */
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CountUp, FadeInCard } from '@/components/motion';
 import { ProgressRing } from '@/components/ProgressRing';
-import { Card, ProgressBar, Screen, styles as ui } from '@/components/ui';
+import { StackPage } from '@/components/layout';
+import { Card, ProgressBar, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 import { addDays, prettyDate, todayKey } from '@/store/dates';
-import { amountLabel, dayTotals } from '@/store/logic';
+import { amountLabel, dayTotals, goalsFor } from '@/store/logic';
 import { useStore } from '@/store/store';
 import type { Meal } from '@/store/types';
 
@@ -24,9 +25,11 @@ const MEALS: { meal: Meal; icon: 'sunny' | 'restaurant' | 'moon' | 'cafe'; share
 export default function FoodScreen() {
   const { state, dispatch } = useStore();
   const today = todayKey();
-  const [day, setDay] = useState(today);
+  const params = useLocalSearchParams<{ date?: string }>();
+  const [day, setDay] = useState(params.date && params.date <= today ? params.date : today);
   const totals = dayTotals(state, day);
-  const remaining = state.goals.kcal - totals.kcal;
+  const goals = goalsFor(state, day);
+  const remaining = goals.kcal - totals.kcal;
   const items = state.food.filter((f) => f.date === day);
   const yesterday = addDays(day, -1);
 
@@ -38,7 +41,7 @@ export default function FoodScreen() {
   };
 
   return (
-    <Screen>
+    <StackPage>
       <View style={s.dayRow}>
         <Pressable hitSlop={12} onPress={() => setDay(addDays(day, -1))}>
           <Ionicons name="chevron-back" size={26} color={Colors.text} />
@@ -58,7 +61,7 @@ export default function FoodScreen() {
 
       <FadeInCard index={0}>
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg }}>
-          <ProgressRing size={130} stroke={11} progress={totals.kcal / state.goals.kcal}>
+          <ProgressRing size={130} stroke={11} progress={totals.kcal / goals.kcal}>
             <CountUp value={Math.round(totals.kcal)} style={{ color: Colors.text, fontSize: 28, fontWeight: '800' }} />
             <Text style={ui.muted}>kcal eaten</Text>
           </ProgressRing>
@@ -67,9 +70,9 @@ export default function FoodScreen() {
               <Text style={ui.statLabel}>{remaining >= 0 ? 'Remaining' : 'Over goal'}</Text>
               <Text style={[ui.statValue, remaining < 0 && { color: Colors.fat }]}>{Math.abs(Math.round(remaining))} kcal</Text>
             </View>
-            <MacroLine label="Protein" value={totals.protein} goal={state.goals.protein} color={Colors.protein} />
-            <MacroLine label="Carbs" value={totals.carbs} goal={state.goals.carbs} color={Colors.carbs} />
-            <MacroLine label="Fat" value={totals.fat} goal={state.goals.fat} color={Colors.fat} />
+            <MacroLine label="Protein" value={totals.protein} goal={goals.protein} color={Colors.protein} />
+            <MacroLine label="Carbs" value={totals.carbs} goal={goals.carbs} color={Colors.carbs} />
+            <MacroLine label="Fat" value={totals.fat} goal={goals.fat} color={Colors.fat} />
           </View>
         </Card>
       </FadeInCard>
@@ -77,7 +80,7 @@ export default function FoodScreen() {
       {MEALS.map(({ meal, icon, share }, i) => {
         const mealItems = items.filter((f) => f.meal === meal);
         const kcal = mealItems.reduce((t, f) => t + f.kcal, 0);
-        const budget = Math.round((state.goals.kcal * share) / 10) * 10;
+        const budget = Math.round((goals.kcal * share) / 10) * 10;
         const canCopy = mealItems.length === 0 && state.food.some((f) => f.date === yesterday && f.meal === meal);
         return (
           <FadeInCard key={meal} index={i + 1}>
@@ -124,7 +127,7 @@ export default function FoodScreen() {
           </FadeInCard>
         );
       })}
-    </Screen>
+    </StackPage>
   );
 }
 

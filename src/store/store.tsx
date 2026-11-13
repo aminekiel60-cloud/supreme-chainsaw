@@ -53,6 +53,13 @@ const initialState: AppState = {
   workouts: [],
   checks: {},
   likes: [],
+  measurements: [],
+  progressPhotos: [],
+  savedMeals: [],
+  grocery: [],
+  program: null,
+  exerciseNotes: {},
+  avatarUrl: null,
 };
 
 type Action =
@@ -83,6 +90,8 @@ type Action =
   | { type: 'logBodyWeight'; entry: BodyWeightEntry }
   | { type: 'removeBodyWeight'; date: DateKey }
   | { type: 'syncHealth'; date: DateKey; day: HealthDay; workouts: Omit<Workout, 'id'>[] }
+  /** Any other change, worked out from the newest state. Keep `change` pure. */
+  | { type: 'apply'; change: (s: AppState) => Partial<AppState> }
   | { type: 'reset' };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -195,6 +204,8 @@ function reducer(state: AppState, action: Action): AppState {
           : state.bodyWeight;
       return { ...state, health: { ...state.health, [action.date]: action.day }, workouts, bodyWeight };
     }
+    case 'apply':
+      return { ...state, ...action.change(state) };
     case 'reset':
       return initialState;
   }

@@ -38,7 +38,7 @@ export function PlateCalc({ weight, onClose }: { weight: number; onClose: () => 
           <Text style={ui.text}>
             {total <= bar
               ? 'Just the bar'
-              : `Per side: ${plates.join(' + ')} kg${loaded !== total ? ` → ${loaded} kg (closest you can load)` : ''}`}
+              : `Per side: ${plates.join(' + ')} kg.${loaded !== total ? ` That makes ${loaded} kg, the closest you can load.` : ''}`}
           </Text>
           <Button title="Done" onPress={onClose} />
         </Pressable>
