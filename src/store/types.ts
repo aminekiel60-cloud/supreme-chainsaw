@@ -278,4 +278,8 @@ export type AppState = {
   exerciseNotes: Record<string, string>;
   /** Your profile picture (copy of the one in your account), for the header */
   avatarUrl: string | null;
+  /** The AI coach's latest advice */
+  coachAdvice: CoachAdvice | null;
 };
+
+export type CoachAdvice = { week: DateKey; headline: string; wins: string[]; focus: { title: string; detail: string }[] };

@@ -5,6 +5,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { RouteMap } from '@/components/RouteMap';
 import { ShareCard, saveCard, shareCard, type ShareStyle } from '@/components/ShareCard';
 import { TagFriends } from '@/components/TagFriends';
 import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
@@ -124,7 +125,7 @@ export default function WorkoutScreen() {
 
       {workout.prs?.length ? (
         <Card highlight style={{ gap: 6 }}>
-          <Text style={{ color: Colors.lime, fontWeight: '900', letterSpacing: 2 }}>🏆 NEW PERSONAL RECORD{workout.prs.length > 1 ? 'S' : ''}</Text>
+          <Text style={{ color: Colors.lime, fontWeight: '900', letterSpacing: 2 }}>NEW PERSONAL RECORD{workout.prs.length > 1 ? 'S' : ''}</Text>
           {workout.prs.map((pr, i) => (
             <Text key={i} style={ui.text}>
               {describeRecord(pr)}
@@ -139,6 +140,28 @@ export default function WorkoutScreen() {
         {p ? <Big label={workout.type === 'cycle' ? 'Speed' : 'Pace'} value={p.split(' ')[0]} unit={p.split(' ')[1]} /> : null}
         {sets ? <Big label="Sets" value={String(sets)} unit={volume ? `${volume.toLocaleString('en-US')} kg` : 'sets'} /> : null}
       </View>
+
+      {workout.route && workout.route.length > 1 ? <RouteMap route={workout.route} /> : null}
+
+      {workout.splits?.length ? (
+        <Card style={{ gap: Spacing.sm }}>
+          <SectionTitle>Splits</SectionTitle>
+          {workout.splits.map((sec, i) => {
+            const fastest = Math.min(...workout.splits!);
+            return (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+                <Text style={[ui.muted, { width: 44 }]}>Km {i + 1}</Text>
+                <View style={{ flex: 1, height: 10, borderRadius: 5, backgroundColor: Colors.border, overflow: 'hidden' }}>
+                  <View style={{ width: `${Math.round((fastest / sec) * 100)}%`, height: '100%', backgroundColor: sec === fastest ? Colors.lime : Colors.carbs, borderRadius: 5 }} />
+                </View>
+                <Text style={{ color: Colors.text, fontWeight: '800', width: 52, textAlign: 'right' }}>
+                  {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, '0')}
+                </Text>
+              </View>
+            );
+          })}
+        </Card>
+      ) : null}
 
       {workout.avgHeartRate || workout.kcal ? (
         <View style={{ flexDirection: 'row', gap: Spacing.sm }}>

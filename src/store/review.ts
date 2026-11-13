@@ -88,10 +88,10 @@ export function weekReview(state: AppState, weekStart?: DateKey): WeekReview {
     stat('volume', 'Weight lifted', n.volume, p.volume, `${fmt(n.volume)} kg`, (d) => `${fmt(d)} kg`),
     stat('lockedDays', 'Locked-in days', n.lockedDays, p.lockedDays, `${n.lockedDays} / ${n.dates.length}`, (d) => String(d)),
     stat('prs', 'Personal records', n.prs, p.prs, String(n.prs), (d) => String(d)),
-    stat('kcal', 'Avg calories', n.kcal, p.kcal, n.kcal ? `${fmt(n.kcal)} kcal` : '—', (d) => `${fmt(d)}`),
+    stat('kcal', 'Avg calories', n.kcal, p.kcal, n.kcal ? `${fmt(n.kcal)} kcal` : 'None', (d) => `${fmt(d)}`),
     stat('protein', 'Protein goal hit', n.proteinDays, p.proteinDays, `${n.proteinDays} days`, (d) => String(d)),
-    stat('steps', 'Steps', n.steps, p.steps, n.steps ? fmt(n.steps) : '—', fmt),
-    stat('sleep', 'Avg sleep', n.sleep, p.sleep, n.sleep ? hm(n.sleep) : '—', hm),
+    stat('steps', 'Steps', n.steps, p.steps, n.steps ? fmt(n.steps) : 'None', fmt),
+    stat('sleep', 'Avg sleep', n.sleep, p.sleep, n.sleep ? hm(n.sleep) : 'None', hm),
     stat('water', 'Water', n.water, p.water, `${n.water.toFixed(1)} L`, (d) => `${d.toFixed(1)} L`),
     stat('xp', 'XP earned', n.xp, p.xp, fmt(n.xp), fmt),
     { id: 'streak', label: 'Streak', value: `${currentStreak(state)} days`, raw: currentStreak(state), delta: '', up: true },
@@ -100,7 +100,7 @@ export function weekReview(state: AppState, weekStart?: DateKey): WeekReview {
   const s = fromKey(start);
   const e = fromKey(end);
   const month = (d: Date) => d.toLocaleDateString('en-US', { month: 'short' });
-  const label = s.getMonth() === e.getMonth() ? `${s.getDate()}–${e.getDate()} ${month(e)}` : `${s.getDate()} ${month(s)} – ${e.getDate()} ${month(e)}`;
+  const label = s.getMonth() === e.getMonth() ? `${s.getDate()} to ${e.getDate()} ${month(e)}` : `${s.getDate()} ${month(s)} to ${e.getDate()} ${month(e)}`;
 
   const headline =
     n.prs > 0

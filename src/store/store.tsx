@@ -60,6 +60,7 @@ const initialState: AppState = {
   program: null,
   exerciseNotes: {},
   avatarUrl: null,
+  coachAdvice: null,
 };
 
 type Action =
