@@ -74,6 +74,8 @@ type Action =
   | { type: 'updateWorkout'; id: string; changes: Partial<Workout> }
   | { type: 'winChallenge'; id: string; title: string; date: DateKey }
   | { type: 'setActiveWorkout'; workout: ActiveWorkout | null }
+  /** Change some fields of the running workout, keeping everything else as it is right now. */
+  | { type: 'patchActiveWorkout'; changes: Partial<ActiveWorkout> }
   | { type: 'addRoutine'; routine: Omit<Routine, 'id'> }
   | { type: 'updateRoutine'; id: string; changes: Partial<Routine> }
   | { type: 'removeRoutine'; id: string }
@@ -137,6 +139,8 @@ function reducer(state: AppState, action: Action): AppState {
     case 'winChallenge':
       if (state.challengeWins.some((c) => c.id === action.id)) return state;
       return { ...state, challengeWins: [...state.challengeWins, { id: action.id, title: action.title, date: action.date }] };
+    case 'patchActiveWorkout':
+      return state.activeWorkout ? { ...state, activeWorkout: { ...state.activeWorkout, ...action.changes } } : state;
     case 'setActiveWorkout':
       return { ...state, activeWorkout: action.workout };
     case 'addRoutine':
@@ -167,13 +171,29 @@ function reducer(state: AppState, action: Action): AppState {
     case 'setSettings':
       return { ...state, settings: action.settings };
     case 'syncHealth': {
-      const known = new Set(state.workouts.map((w) => w.externalId).filter(Boolean));
-      const fresh = action.workouts.filter((w) => !known.has(w.externalId));
-      return {
-        ...state,
-        health: { ...state.health, [action.date]: action.day },
-        workouts: [...state.workouts, ...fresh.map((w) => ({ ...w, id: newId() }))],
-      };
+      let workouts = state.workouts;
+      for (const incoming of action.workouts) {
+        const existing = workouts.find((w) => w.externalId && w.externalId === incoming.externalId);
+        // A workout you logged in the app and also recorded on your watch is one workout:
+        // keep yours and add the watch's heart rate and calories to it.
+        const sameSession =
+          existing ?? workouts.find((w) => !w.externalId && w.date === incoming.date && w.type === incoming.type);
+        const fromWatch = { avgHeartRate: incoming.avgHeartRate, maxHeartRate: incoming.maxHeartRate, kcal: incoming.kcal };
+        workouts = sameSession
+          ? workouts.map((w) =>
+              w.id === sameSession.id
+                ? { ...w, ...fromWatch, externalId: incoming.externalId, distanceKm: w.distanceKm ?? incoming.distanceKm }
+                : w,
+            )
+          : [...workouts, { ...incoming, id: newId() }];
+      }
+      // A weight from a smart scale becomes a body-weight entry (unless you logged one yourself that day).
+      const scale = action.day.weightKg;
+      const bodyWeight =
+        scale && !state.bodyWeight.some((b) => b.date === action.date)
+          ? [...state.bodyWeight, { date: action.date, kg: scale }].sort((a, b) => (a.date < b.date ? -1 : 1))
+          : state.bodyWeight;
+      return { ...state, health: { ...state.health, [action.date]: action.day }, workouts, bodyWeight };
     }
     case 'reset':
       return initialState;

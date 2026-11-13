@@ -20,14 +20,15 @@ select 'T5 B sees A post (1)', count(*) from public.posts;
 insert into public.post_likes (post_id, user_id) select id, 'bbbbbbbb-0000-0000-0000-000000000000' from public.posts;
 select 'T6 B liked (1)', count(*) from public.post_likes;
 select 'T7 B reads A private data (0)', count(*) from public.user_data;
-update public.profiles set invite_code='HACKED'; -- T8 expect permission denied
+update public.profiles set display_name='HACKED' where id='aaaaaaaa-0000-0000-0000-000000000000'; -- T8 changes nothing: B may only edit their own profile
+select 'T8 A name unchanged (0)', count(*) from public.profiles where display_name='HACKED';
 with x as (update public.profiles set week_points=50 where id='bbbbbbbb-0000-0000-0000-000000000000' returning 1) select 'T9 B updates own points (1)', count(*) from x;
 with x as (update public.profiles set week_points=999 where id='aaaaaaaa-0000-0000-0000-000000000000' returning 1) select 'T10 B cannot update A points (0)', count(*) from x;
 select pg_temp.as_user('cccccccc-0000-0000-0000-000000000000');
 select 'T11 C sees A post (0)', count(*) from public.posts;
 insert into public.post_likes (post_id, user_id) values ((select id from public.posts limit 1), 'cccccccc-0000-0000-0000-000000000000'); -- null post -> error ok
 select 'T12 C sees friendships (0)', count(*) from public.friendships;
-select 'T13 C finds A by invite code (1)', count(*) from public.profiles where id='aaaaaaaa-0000-0000-0000-000000000000';
+select 'T13 C can look up A profile by id (1)', count(*) from public.profiles where id='aaaaaaaa-0000-0000-0000-000000000000';
 insert into public.posts (user_id, ref, kind, title) values ('aaaaaaaa-0000-0000-0000-000000000000','fake','workout','Fake'); -- T14 expect RLS violation
 select 'T15 C reads ai_usage (0, no access)', count(*) from public.ai_usage;
 -- challenge: A creates, B (friend) sees and joins, C cannot

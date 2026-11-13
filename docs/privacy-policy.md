@@ -11,7 +11,7 @@ Locked in is a fitness, nutrition and habit app made by [Your full name], Belgiu
 • Account: email address, password (stored encrypted by our provider) and the name you choose.
 • Profile: age, sex, height, weight, activity level and goal, used only to calculate your calorie and macro goals.
 • Your log: foods, workouts, habits and settings you enter.
-• Health Connect data (only if you turn it on): steps, sleep sessions, heart rate, resting heart rate, exercise sessions and distance.
+• Health Connect data (only if you turn it on): steps, sleep sessions and sleep stages, heart rate, resting heart rate, heart-rate variability, active calories burned, body weight, exercise sessions and distance.
 • Social: friends you add, posts that the app shares to your friends (your workouts and locked-in days), likes and comments.
 • Meal photos you choose to analyse with AI.
 
@@ -21,7 +21,7 @@ Only to run the app for you: show your progress, calculate goals, streaks and po
 
 ## Health Connect
 
-Data read from Health Connect is used only to show your steps, sleep and heart rate in the app, to tick your steps and sleep habits, and to add your workouts to your training log. It is never used for advertising, never sold and never shared with third parties other than the processors listed below that store your synced log. The use of information received from Health Connect adheres to the Health Connect Permissions policy, including the Limited Use requirements. You can turn the connection off at any time in Profile → Health Connect.
+Data read from Health Connect is used only to show your steps, sleep, heart rate, calories burned and readiness score in the app, to tick your steps and sleep habits, to keep your body-weight log up to date, and to add your workouts to your training log. It is never used for advertising, never sold and never shared with third parties other than the processors listed below that store your synced log. The use of information received from Health Connect adheres to the Health Connect Permissions policy, including the Limited Use requirements. You can turn the connection off at any time in Profile → Health Connect.
 
 ## Meal photos and AI
 

@@ -35,23 +35,44 @@ async function ensureChannel() {
   }
 }
 
-/** Notify in `seconds`, even if the app is in the background. Returns the notification id. */
-export async function scheduleRestNotification(seconds: number): Promise<string | null> {
-  if (Platform.OS === 'web' || seconds < 1) return null;
-  try {
-    await ensureChannel();
-    const perm = await Notifications.getPermissionsAsync();
-    if (!perm.granted) return null;
-    return await Notifications.scheduleNotificationAsync({
-      content: { title: 'Rest over 💪', body: 'Next set — lock in.', data: { kind: 'rest' }, sound: true },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.round(seconds), channelId: CHANNEL },
-    });
-  } catch {
-    return null;
-  }
+// Rest notifications are handled one at a time, so two quick taps can never leave
+// an extra "rest over" notification behind.
+let queue: Promise<unknown> = Promise.resolve();
+
+async function cancelAllRest() {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled.filter((n) => n.content.data?.kind === 'rest').map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {})),
+  );
 }
 
-export async function cancelRestNotification(id?: string | null) {
-  if (!id || Platform.OS === 'web') return;
-  await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+/** Replace any pending "rest over" notification with one in `seconds`, even if the app is in the background. */
+export function scheduleRestNotification(seconds: number): Promise<string | null> {
+  if (Platform.OS === 'web' || seconds < 1) return Promise.resolve(null);
+  const job = queue.then(async () => {
+    try {
+      await cancelAllRest();
+      await ensureChannel();
+      // First rest of a first workout: ask once whether we may notify.
+      let perm = await Notifications.getPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) perm = await Notifications.requestPermissionsAsync();
+      if (!perm.granted) return null;
+      return await Notifications.scheduleNotificationAsync({
+        content: { title: 'Rest over 💪', body: 'Next set — lock in.', data: { kind: 'rest' }, sound: true },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.round(seconds), channelId: CHANNEL },
+      });
+    } catch {
+      return null;
+    }
+  });
+  queue = job;
+  return job;
+}
+
+/** Remove the pending "rest over" notification, if there is one. */
+export function cancelRestNotification(): Promise<void> {
+  if (Platform.OS === 'web') return Promise.resolve();
+  const job = queue.then(() => cancelAllRest().catch(() => {}));
+  queue = job;
+  return job;
 }

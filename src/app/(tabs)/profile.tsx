@@ -108,6 +108,7 @@ export default function ProfileTab() {
           <Row icon="calendar" title="Calendar" detail="Every day, workout and streak" onPress={() => router.push('/calendar')} />
           <Row icon="stats-chart" title="Week in review" detail="Your week in numbers, ready to share" onPress={() => router.push('/review')} />
           <Row icon="scale" title="Body weight" detail="Log your weight and see the trend" onPress={() => router.push('/body-weight')} />
+          <Row icon="watch" title="Connected devices" detail="Garmin, Polar, Samsung, Fitbit and more" onPress={() => router.push('/devices')} />
           <Row icon="options" title="Your goals" detail="Calories, macros, steps, water, sleep" onPress={() => router.push('/goals')} />
           {cloudEnabled && <Row icon="people" title="Friends" detail="Add friends, requests" onPress={() => router.push('/friends')} />}
           {cloudEnabled && <Row icon="clipboard" title="Coach" detail="Share your nutrition with chosen friends" onPress={() => router.push('/coach')} />}

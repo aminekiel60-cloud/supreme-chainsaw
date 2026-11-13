@@ -93,6 +93,7 @@ function RootStack() {
           <Stack.Screen name="routines" options={{ title: 'Routines' }} />
           <Stack.Screen name="body-weight" options={{ title: 'Body weight' }} />
           <Stack.Screen name="review" options={{ title: 'Week in review' }} />
+          <Stack.Screen name="devices" options={{ title: 'Connected devices' }} />
           <Stack.Screen name="photo" options={{ presentation: 'modal', title: 'AI food photo' }} />
           <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan barcode' }} />
           <Stack.Screen name="post/[id]" options={{ presentation: 'modal', title: 'Comments' }} />

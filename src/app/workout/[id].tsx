@@ -140,6 +140,14 @@ export default function WorkoutScreen() {
         {sets ? <Big label="Sets" value={String(sets)} unit={volume ? `${volume.toLocaleString('en-US')} kg` : 'sets'} /> : null}
       </View>
 
+      {workout.avgHeartRate || workout.kcal ? (
+        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+          {workout.avgHeartRate ? <Big label="Avg HR" value={String(workout.avgHeartRate)} unit="bpm" /> : null}
+          {workout.maxHeartRate ? <Big label="Max HR" value={String(workout.maxHeartRate)} unit="bpm" /> : null}
+          {workout.kcal ? <Big label="Burned" value={String(workout.kcal)} unit="kcal" /> : null}
+        </View>
+      ) : null}
+
       {workout.exercises?.length ? (
         <Card style={{ gap: Spacing.sm }}>
           <SectionTitle

@@ -102,6 +102,10 @@ export type Workout = {
   photoUri?: string;
   /** Friends who trained with you */
   tagged?: { id: string; name: string }[];
+  /** From your watch, when the workout was recorded there too */
+  avgHeartRate?: number;
+  maxHeartRate?: number;
+  kcal?: number;
   /** Records set in this workout */
   prs?: PersonalRecord[];
   /** Started from this routine */
@@ -169,6 +173,16 @@ export type HealthDay = {
   sleepStart?: string;
   avgHeartRate?: number;
   restingHeartRate?: number;
+  /** Calories burned by moving (not counting your resting burn) */
+  activeKcal?: number;
+  /** Heart-rate variability during the night, in ms (higher = better recovered) */
+  hrv?: number;
+  /** Sleep stages last night, in minutes (when your watch reports them) */
+  deepMinutes?: number;
+  remMinutes?: number;
+  lightMinutes?: number;
+  /** Latest weight from a smart scale */
+  weightKg?: number;
 };
 
 export type Settings = {

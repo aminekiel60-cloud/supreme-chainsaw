@@ -57,7 +57,7 @@ Create the app: name **Locked in**, default language English (add Dutch later), 
 | Content rating | Questionnaire → category *Utility/Productivity/Health*; no violence etc. → rated for everyone |
 | Target audience | 16+ (not designed for children) |
 | Health apps declaration | Fitness / nutrition tracking. Not a medical device |
-| **Health Connect** | Declare each permission: Steps, Sleep, Heart rate, Resting heart rate, Exercise, Distance → *"Show the user's activity, sleep and heart rate in the app, auto-complete daily habits and import workouts into the training log."* |
+| **Health Connect** | Declare each permission: Steps, Sleep, Heart rate, Resting heart rate, Heart-rate variability, Active calories burned, Weight, Exercise, Distance → *"Show the user's activity, sleep, heart rate, calories burned and a readiness score in the app, auto-complete daily habits, keep the body-weight log up to date and import workouts into the training log."* |
 | Account deletion | In-app: Profile → Delete my account. Also give a web URL or email where users can request deletion |
 
 **Data safety** (what to tick)

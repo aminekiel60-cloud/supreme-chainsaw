@@ -21,10 +21,12 @@ export type HistoryEntry = { workoutId: string; date: string; sets: ExerciseSet[
 /** Every time you did this exercise, newest first. */
 export function exerciseHistory(state: AppState, name: string, before?: Workout): HistoryEntry[] {
   const k = key(name);
+  // Newest first. Two workouts on the same day: the one logged later counts as newer.
   return state.workouts
-    .filter((w) => w.id !== before?.id && w.exercises?.some((e) => key(e.name) === k))
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-    .map((w) => ({ workoutId: w.id, date: w.date, sets: w.exercises!.find((e) => key(e.name) === k)!.sets }));
+    .map((w, order) => ({ w, order }))
+    .filter(({ w }) => w.id !== before?.id && w.exercises?.some((e) => key(e.name) === k))
+    .sort((a, b) => (a.w.date < b.w.date ? 1 : a.w.date > b.w.date ? -1 : b.order - a.order))
+    .map(({ w }) => ({ workoutId: w.id, date: w.date, sets: w.exercises!.find((e) => key(e.name) === k)!.sets }));
 }
 
 export type Records = {

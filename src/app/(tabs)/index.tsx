@@ -17,6 +17,7 @@ import { connectHealth } from '@/lib/health';
 import { prettyDate, todayKey } from '@/store/dates';
 import {
   currentStreak,
+  readiness,
   dayProgress,
   dayTotals,
   weekPoints,
@@ -157,6 +158,7 @@ function RecoverCard() {
   const { state, dispatch } = useStore();
   const today = state.health[todayKey()];
   const connected = state.settings.healthConnect;
+  const ready = readiness(state);
   const fmtSleep = (m: number) => (m > 0 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}` : '—');
 
   const connect = async () => {
@@ -175,11 +177,41 @@ function RecoverCard() {
   return (
     <Card style={{ gap: Spacing.md }}>
       <SectionTitle action={<Badge text={connected ? 'SYNCED' : 'RECOVER'} />}>Recover</SectionTitle>
+      {ready && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg }}>
+          <ProgressRing size={76} stroke={8} progress={ready.score / 100} color={ready.score >= 60 ? Colors.lime : Colors.fat}>
+            <Text style={{ color: Colors.text, fontWeight: '900', fontSize: 20 }}>{ready.score}</Text>
+          </ProgressRing>
+          <View style={{ flex: 1 }}>
+            <Text style={ui.statLabel}>READINESS</Text>
+            <Text style={{ color: Colors.text, fontWeight: '800', fontSize: 17 }}>{ready.label}</Text>
+            <Text style={ui.muted}>{ready.advice}</Text>
+          </View>
+        </View>
+      )}
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <Stat label="Resting HR" value={today?.restingHeartRate ? String(today.restingHeartRate) : '—'} unit="bpm" />
         <Stat label="Sleep" value={fmtSleep(today?.sleepMinutes ?? 0)} unit="last night" />
         <Stat label="Steps" value={today ? today.steps.toLocaleString('en-US') : '—'} unit="today" />
       </View>
+      {(today?.hrv || today?.activeKcal) && (
+        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+          <Stat label="HRV" value={today.hrv ? String(today.hrv) : '—'} unit="ms last night" />
+          <Stat label="Active burn" value={today.activeKcal ? String(today.activeKcal) : '—'} unit="kcal today" />
+        </View>
+      )}
+      {today?.deepMinutes !== undefined && today.sleepMinutes > 0 && (
+        <View style={{ gap: 6 }}>
+          <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: Colors.border }}>
+            <View style={{ flex: today.deepMinutes || 0.01, backgroundColor: '#5B6CFF' }} />
+            <View style={{ flex: today.remMinutes || 0.01, backgroundColor: Colors.carbs }} />
+            <View style={{ flex: today.lightMinutes || 0.01, backgroundColor: '#3A4A66' }} />
+          </View>
+          <Text style={ui.muted}>
+            Deep {fmtSleep(today.deepMinutes)} · REM {fmtSleep(today.remMinutes ?? 0)} · Light {fmtSleep(today.lightMinutes ?? 0)}
+          </Text>
+        </View>
+      )}
       {connected ? (
         <Text style={ui.muted}>
           Synced from Health Connect. Your steps and sleep goals tick themselves.

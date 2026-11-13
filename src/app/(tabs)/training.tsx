@@ -20,7 +20,7 @@ export default function TrainingScreen() {
   const thisWeek = state.workouts.filter((w) => w.date >= weekStart);
   const km = thisWeek.reduce((t, w) => t + (w.distanceKm ?? 0), 0);
   const minutes = thisWeek.reduce((t, w) => t + w.durationMin, 0);
-  const history = [...state.workouts].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  const history = [...state.workouts].reverse().sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const perSport = SPORTS.map((sp) => ({ ...sp, count: thisWeek.filter((w) => w.type === sp.id).length })).filter((sp) => sp.count);
 
   return (

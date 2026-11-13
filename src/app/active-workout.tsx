@@ -31,7 +31,9 @@ export default function ActiveWorkoutScreen() {
   const restDone = useRef<string | null>(null);
   useKeepAwake();
 
-  const update = (changes: Partial<ActiveWorkout>) => aw && dispatch({ type: 'setActiveWorkout', workout: { ...aw, ...changes } });
+  // Patches are merged into the newest workout in the store, so a slow step
+  // (like scheduling the rest notification) can never undo a newer change.
+  const update = (changes: Partial<ActiveWorkout>) => dispatch({ type: 'patchActiveWorkout', changes });
 
   // Rest countdown reached zero while the app is open: buzz once.
   const restLeft = aw?.restUntil ? Math.ceil((new Date(aw.restUntil).getTime() - now) / 1000) : 0;
@@ -65,7 +67,6 @@ export default function ActiveWorkoutScreen() {
     updateExercise(i, { sets: aw.exercises[i].sets.map((x, idx) => (idx === j ? { ...x, ...changes } : x)) });
 
   const startRest = async (seconds: number) => {
-    await cancelRestNotification(aw.restNotificationId);
     const id = await scheduleRestNotification(seconds);
     update({ restUntil: new Date(Date.now() + seconds * 1000).toISOString(), restSeconds: seconds, restNotificationId: id ?? undefined });
   };
@@ -77,16 +78,16 @@ export default function ActiveWorkoutScreen() {
   };
 
   const skipRest = async () => {
-    await cancelRestNotification(aw.restNotificationId);
+    await cancelRestNotification();
     restDone.current = aw.restUntil ?? null;
     update({ restUntil: undefined, restNotificationId: undefined });
   };
 
-  const toggleDone = (i: number, j: number) => {
+  const toggleDone = (i: number, j: number, fill?: Partial<ExerciseSet>) => {
     const set = aw.exercises[i].sets[j];
     const done = !set.done;
     haptics.tap();
-    updateSet(i, j, { done });
+    updateSet(i, j, { ...fill, done });
     if (done) startRest(aw.exercises[i].restSeconds ?? state.settings.restSeconds);
   };
 
@@ -140,7 +141,7 @@ export default function ActiveWorkoutScreen() {
       routineId: aw.routineId,
     };
     workout.prs = detectRecords(state, workout);
-    cancelRestNotification(aw.restNotificationId);
+    cancelRestNotification();
     dispatch({ type: 'addWorkout', workout });
     if (aw.routineId) dispatch({ type: 'updateRoutine', id: aw.routineId, changes: { lastUsed: todayKey() } });
     dispatch({ type: 'setActiveWorkout', workout: null });
@@ -155,7 +156,7 @@ export default function ActiveWorkoutScreen() {
         text: 'Discard',
         style: 'destructive',
         onPress: () => {
-          cancelRestNotification(aw.restNotificationId);
+          cancelRestNotification();
           dispatch({ type: 'setActiveWorkout', workout: null });
           router.back();
         },
@@ -168,13 +169,13 @@ export default function ActiveWorkoutScreen() {
         options={{
           title: '',
           headerLeft: () => (
-            <Pressable hitSlop={10} onPress={() => router.back()} style={{ paddingRight: 12 }}>
+            <Pressable hitSlop={10} onPress={() => router.back()} style={{ paddingRight: 12 }} accessibilityLabel="Minimise workout">
               <Ionicons name="chevron-down" size={26} color={Colors.text} />
             </Pressable>
           ),
           headerTitle: () => <Text style={[Type.heading, { color: Colors.lime, fontVariant: ['tabular-nums'] }]}>{formatDuration(elapsed)}</Text>,
           headerRight: () => (
-            <Pressable onPress={finish} style={s.finish}>
+            <Pressable onPress={finish} style={s.finish} accessibilityLabel="Finish workout">
               <Text style={{ color: Colors.background, fontWeight: '900' }}>Finish</Text>
             </Pressable>
           ),
@@ -222,7 +223,7 @@ export default function ActiveWorkoutScreen() {
             total={aw.exercises.length}
             onRename={(name) => updateExercise(i, { name })}
             onSet={(j, changes) => updateSet(i, j, changes)}
-            onToggle={(j) => toggleDone(i, j)}
+            onToggle={(j, fill) => toggleDone(i, j, fill)}
             onAddSet={() => addSet(i)}
             onRemoveSet={(j) => removeSet(i, j)}
             onRemove={() => removeExercise(i)}
@@ -264,7 +265,7 @@ function ExerciseCard({
   total: number;
   onRename: (name: string) => void;
   onSet: (j: number, changes: Partial<ExerciseSet>) => void;
-  onToggle: (j: number) => void;
+  onToggle: (j: number, fill?: Partial<ExerciseSet>) => void;
   onAddSet: () => void;
   onRemoveSet: (j: number) => void;
   onRemove: () => void;
@@ -296,13 +297,13 @@ function ExerciseCard({
             <Text style={{ color: Colors.background, fontWeight: '900', fontSize: 11 }}>NEW PR</Text>
           </View>
         )}
-        <Pressable hitSlop={8} onPress={() => onMove(-1)} disabled={index === 0}>
+        <Pressable hitSlop={8} onPress={() => onMove(-1)} disabled={index === 0} accessibilityLabel="Move exercise up">
           <Ionicons name="chevron-up" size={20} color={index === 0 ? Colors.textFaint : Colors.textMuted} />
         </Pressable>
-        <Pressable hitSlop={8} onPress={() => onMove(1)} disabled={index === total - 1}>
+        <Pressable hitSlop={8} onPress={() => onMove(1)} disabled={index === total - 1} accessibilityLabel="Move exercise down">
           <Ionicons name="chevron-down" size={20} color={index === total - 1 ? Colors.textFaint : Colors.textMuted} />
         </Pressable>
-        <Pressable hitSlop={8} onPress={onRemove}>
+        <Pressable hitSlop={8} onPress={onRemove} accessibilityLabel="Remove exercise">
           <Ionicons name="trash-outline" size={20} color={Colors.textMuted} />
         </Pressable>
       </View>
@@ -325,7 +326,7 @@ function ExerciseCard({
           set={set}
           previous={last?.sets[j]}
           onChange={(changes) => onSet(j, changes)}
-          onToggle={() => onToggle(j)}
+          onToggle={(fill) => onToggle(j, fill)}
           onRemove={() => onRemoveSet(j)}
         />
       ))}
@@ -362,16 +363,23 @@ function SetRow({
   set: ExerciseSet;
   previous?: ExerciseSet;
   onChange: (changes: Partial<ExerciseSet>) => void;
-  onToggle: () => void;
+  onToggle: (fill?: Partial<ExerciseSet>) => void;
   onRemove: () => void;
 }) {
   // Local text so "7." and "" don't fight with the number in the store.
   const [weight, setWeight] = useState(set.weight ? String(set.weight) : '');
   const [reps, setReps] = useState(set.reps ? String(set.reps) : '');
 
+  // A set above this one was deleted, or values were filled in from elsewhere:
+  // show what the store holds now instead of this row's old text.
+  useEffect(() => {
+    setWeight((text) => (num(text) === set.weight ? text : set.weight ? String(set.weight) : ''));
+    setReps((text) => (Math.round(num(text)) === set.reps ? text : set.reps ? String(set.reps) : ''));
+  }, [set.weight, set.reps]);
+
   return (
     <View style={[s.setRow, set.done && s.setRowDone]}>
-      <Pressable style={s.colSet} onLongPress={() => onChange({ warmup: !set.warmup })}>
+      <Pressable style={s.colSet} onLongPress={() => onChange({ warmup: !set.warmup })} accessibilityLabel={`Set ${index + 1}, hold to mark as warm-up`}>
         <Text style={{ color: set.warmup ? Colors.fat : Colors.textMuted, fontWeight: '800' }}>{set.warmup ? 'W' : index + 1}</Text>
       </Pressable>
       <Text style={[s.col, s.colPrev, ui.muted]} numberOfLines={1}>
@@ -380,6 +388,7 @@ function SetRow({
       <TextInput
         style={[s.col, s.colNum, s.input, set.done && s.inputDone]}
         keyboardType="decimal-pad"
+        accessibilityLabel="Weight in kg"
         placeholder={previous ? String(previous.weight) : '0'}
         placeholderTextColor={Colors.textFaint}
         value={weight}
@@ -392,6 +401,7 @@ function SetRow({
       <TextInput
         style={[s.col, s.colNum, s.input, set.done && s.inputDone]}
         keyboardType="numeric"
+        accessibilityLabel="Reps"
         placeholder={previous ? String(previous.reps) : '0'}
         placeholderTextColor={Colors.textFaint}
         value={reps}
@@ -404,18 +414,15 @@ function SetRow({
       <Pressable
         onPress={() => {
           // Ticking an empty set uses the placeholder (last time's) values.
-          if (!set.done && set.reps === 0 && previous) {
-            setWeight(weight || String(previous.weight));
-            setReps(String(previous.reps));
-            onChange({ reps: previous.reps, weight: set.weight || previous.weight });
-          }
-          onToggle();
+          if (!set.done && set.reps === 0 && previous) onToggle({ reps: previous.reps, weight: set.weight || previous.weight });
+          else onToggle();
         }}
         style={[s.colCheck, s.check, set.done && s.checkDone]}
+        accessibilityLabel={set.done ? 'Set done' : 'Complete set'}
         hitSlop={6}>
         <Ionicons name="checkmark" size={18} color={set.done ? Colors.background : Colors.textFaint} />
       </Pressable>
-      <Pressable onPress={onRemove} style={s.colX} hitSlop={8}>
+      <Pressable onPress={onRemove} style={s.colX} hitSlop={8} accessibilityLabel="Remove set">
         <Ionicons name="close" size={16} color={Colors.textFaint} />
       </Pressable>
     </View>

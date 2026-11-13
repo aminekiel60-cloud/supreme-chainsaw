@@ -251,3 +251,51 @@ export function amountLabel(entry: FoodEntry): string {
   if (b.unit === 'g') return `${b.amount} g`;
   return b.amount === 1 ? '' : `${b.amount} servings`;
 }
+
+export type Readiness = { score: number; label: string; advice: string; parts: { sleep: number; heart: number | null; load: number } };
+
+/**
+ * Readiness for today (0–100), from last night's sleep (50%), resting heart rate
+ * and HRV vs. your own 14-day average (30%) and yesterday's training (20%).
+ * Null without sleep data — it needs a watch synced through Health Connect.
+ */
+export function readiness(state: AppState, date: DateKey = todayKey()): Readiness | null {
+  const today = state.health[date];
+  if (!today || today.sleepMinutes <= 0) return null;
+
+  const sleep = Math.min(1, today.sleepMinutes / 480);
+
+  const baselineDays = Array.from({ length: 14 }, (_, i) => state.health[addDays(date, -(i + 1))]?.restingHeartRate).filter(
+    (x): x is number => typeof x === 'number' && x > 0,
+  );
+  const signals: number[] = [];
+  if (today.restingHeartRate && baselineDays.length >= 3) {
+    const baseline = baselineDays.reduce((t, x) => t + x, 0) / baselineDays.length;
+    // At or below your normal = full marks; +10 bpm above = zero.
+    signals.push(Math.max(0, Math.min(1, 1 - (today.restingHeartRate - baseline) / 10)));
+  }
+  const hrvDays = Array.from({ length: 14 }, (_, i) => state.health[addDays(date, -(i + 1))]?.hrv).filter(
+    (x): x is number => typeof x === 'number' && x > 0,
+  );
+  if (today.hrv && hrvDays.length >= 3) {
+    const baseline = hrvDays.reduce((t, x) => t + x, 0) / hrvDays.length;
+    // At or above your normal = full marks; 30% below = zero.
+    signals.push(Math.max(0, Math.min(1, 1 - (baseline - today.hrv) / (baseline * 0.3))));
+  }
+  const heart = signals.length ? signals.reduce((t, x) => t + x, 0) / signals.length : null;
+
+  const yesterdayMinutes = workoutsOn(state, addDays(date, -1)).reduce((t, w) => t + w.durationMin, 0);
+  const load = yesterdayMinutes <= 30 ? 1 : Math.max(0.5, 1 - (yesterdayMinutes - 30) / 180);
+
+  // Without heart-rate history, sleep and load share its weight.
+  const score = Math.round(heart === null ? (sleep * 0.7 + load * 0.3) * 100 : (sleep * 0.5 + heart * 0.3 + load * 0.2) * 100);
+  const [label, advice] =
+    score >= 80
+      ? ['Ready to push', 'Great day for a hard session or a PR attempt.']
+      : score >= 60
+        ? ['Good to go', 'Train as planned.']
+        : score >= 40
+          ? ['Take it steady', 'Keep it moderate today: technique, cardio or a lighter session.']
+          : ['Recover', 'Your body needs rest: walk, stretch and get to bed early.'];
+  return { score, label, advice, parts: { sleep, heart, load } };
+}

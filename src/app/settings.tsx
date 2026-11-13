@@ -72,8 +72,17 @@ export default function ProfileScreen() {
           />
         </View>
         {settings.healthConnect && Platform.OS === 'android' && (
-          <Button title="Manage Health Connect permissions" icon="settings" variant="ghost" onPress={openHealthConnectSettings} />
+          <>
+            <Button
+              title="Allow new data types"
+              icon="add-circle"
+              variant="ghost"
+              onPress={() => connectHealth().then((ok) => Alert.alert(ok ? 'Permissions updated' : 'Health Connect', ok ? 'Locked in now syncs everything you allowed.' : 'Permission was not given.'))}
+            />
+            <Button title="Manage Health Connect permissions" icon="settings" variant="ghost" onPress={openHealthConnectSettings} />
+          </>
         )}
+        <Button title="Connected devices" icon="watch" variant="ghost" onPress={() => router.push('/devices')} />
         <Text style={ui.muted}>
           Works with Samsung Health, Garmin Connect, Fitbit, Google Fit and more — they all share their data through Health Connect.
         </Text>
