@@ -183,6 +183,11 @@ export function PostCard({ post, actions }: { post: Post; actions: PostActions }
   );
 }
 
+/** "1h 08m", "5.2 km" and "8,420 kg" say what they are; a bare count needs its label: "7 exercises". */
+function statText(st: { label: string; value: string }) {
+  return /^[\d.,]+$/.test(st.value.trim()) ? `${st.value} ${st.label.toLowerCase()}` : st.value;
+}
+
 function StatPills({ post }: { post: Post }) {
   if (post.stats.length === 0) return null;
   return (
@@ -209,12 +214,13 @@ function ActivityOverlay({ post }: { post: Post }) {
             {post.title}
           </Text>
           {post.stats.length > 0 && (
-            <Text style={s.overlayStats} numberOfLines={1}>
-              {post.stats
-                .slice(0, 3)
-                .map((x) => `${x.value} ${x.label.toLowerCase()}`)
-                .join('   ')}
-            </Text>
+            <View style={{ flexDirection: 'row', gap: 14, overflow: 'hidden' }}>
+              {post.stats.slice(0, 3).map((st) => (
+                <Text key={st.label} style={s.overlayStats} numberOfLines={1}>
+                  {statText(st)}
+                </Text>
+              ))}
+            </View>
           )}
         </View>
         {(post.kind === 'workout' || post.kind === 'locked_in') && (
