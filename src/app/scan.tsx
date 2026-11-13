@@ -158,8 +158,7 @@ export default function ScanScreen() {
       <Card style={{ gap: Spacing.sm }}>
         <Text style={[ui.text, { fontSize: 18, fontWeight: '800' }]}>{product.name}</Text>
         <Text style={ui.muted}>
-          Per 100 g: {product.per100.kcal} kcal · P {product.per100.protein}g · C {product.per100.carbs}g · F{' '}
-          {product.per100.fat}g
+          Per 100 g: {product.per100.kcal} kcal, {product.per100.protein} g protein, {product.per100.carbs} g carbs, {product.per100.fat} g fat
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={ui.muted}>
@@ -185,7 +184,7 @@ export default function ScanScreen() {
           ))}
         </View>
         <Text style={{ color: Colors.lime, fontWeight: '800', fontSize: 18 }}>
-          {n.kcal} kcal · P {n.protein}g · C {n.carbs}g · F {n.fat}g
+          {n.kcal} kcal, {n.protein} g protein, {n.carbs} g carbs, {n.fat} g fat
         </Text>
       </Card>
 

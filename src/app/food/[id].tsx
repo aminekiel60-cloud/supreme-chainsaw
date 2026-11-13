@@ -79,7 +79,7 @@ export default function EditFoodScreen() {
           ))}
         </View>
         <Text style={{ color: Colors.lime, fontWeight: '800', fontSize: 18 }}>
-          {totals.kcal} kcal · P {totals.protein}g · C {totals.carbs}g · F {totals.fat}g
+          {totals.kcal} kcal, {totals.protein} g protein, {totals.carbs} g carbs, {totals.fat} g fat
         </Text>
       </Card>
 
@@ -114,7 +114,7 @@ export default function EditFoodScreen() {
           </>
         ) : (
           <Text style={ui.muted}>
-            {base.kcal} kcal · P {base.protein}g · C {base.carbs}g · F {base.fat}g
+            {base.kcal} kcal, {base.protein} g protein, {base.carbs} g carbs, {base.fat} g fat
           </Text>
         )}
       </Card>

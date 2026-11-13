@@ -24,7 +24,7 @@ export function ActiveWorkoutBanner() {
       <View style={{ flex: 1 }}>
         <Text style={{ color: Colors.text, fontWeight: '800' }}>{aw.title || 'Workout'} in progress</Text>
         <Text style={ui.muted}>
-          {done} sets done · {aw.exercises.length} exercises
+          {done} {done === 1 ? 'set' : 'sets'} done, {aw.exercises.length} {aw.exercises.length === 1 ? 'exercise' : 'exercises'}
         </Text>
       </View>
       <Text style={[s.time, { fontVariant: ['tabular-nums'] }]}>{formatDuration(elapsed)}</Text>

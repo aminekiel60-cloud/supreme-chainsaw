@@ -7,7 +7,7 @@ A step-by-step checklist. ✅ = done in the code, 👤 = you, 🤝 = together in
 - 👤 **Google Play Console** — play.google.com/console → sign up as an *individual*, pay $25, verify your identity (takes a few days).
 - 👤 **Supabase** — supabase.com → New project `locked-in`, region in the **EU** (this project: West EU, Ireland). Save the database password in a password manager.
 - 🤝 **Set up the database** — Claude runs the files in `supabase/migrations/` and deploys the functions in `supabase/functions/` using a Supabase access token you enter in the secure form (never in chat).
-- 👤 **Anthropic key** — console.anthropic.com → API keys → Create key. Paste it **only** in Supabase → Edge Functions → Secrets as `ANTHROPIC_API_KEY`. Add ~$5 credit; each AI photo costs about $0.02.
+- 👤 **Anthropic key**: console.anthropic.com, API keys, Create key. Paste it **only** in Supabase, Edge Functions, Secrets as `ANTHROPIC_API_KEY`. It powers AI photo (5 a day per user) and the weekly coach (3 a week per user). Add about $5 credit; each request costs a few cents.
 - 🤝 **Connect the app** — put the project URL and publishable key in `.env` (see `.env.example`). Both are public by design.
 - 👤 **Supabase Auth settings** — Authentication → URL Configuration → *Site URL*: set it to your website or privacy page, so the "confirm your email" link lands somewhere nice.
 
@@ -58,6 +58,8 @@ Create the app: name **Locked in**, default language English (add Dutch later), 
 | Target audience | 16+ (not designed for children) |
 | Health apps declaration | Fitness / nutrition tracking. Not a medical device |
 | **Health Connect** | Declare each permission: Steps, Sleep, Heart rate, Resting heart rate, Heart-rate variability, Active calories burned, Weight, Exercise, Distance → *"Show the user's activity, sleep, heart rate, calories burned and a readiness score in the app, auto-complete daily habits, keep the body-weight log up to date and import workouts into the training log."* |
+| User-generated content | Users can post photos and comments, public posts are opt-in. In-app reporting (three dots on a post, Report) and blocking (Block) exist; blocked users' posts and comments are hidden. |
+| Location permission | Foreground only, used to draw the route and measure distance while tracking a run, walk or ride |
 | Account deletion | In-app: Profile → Delete my account. Also give a web URL or email where users can request deletion |
 
 **Data safety** (what to tick)
@@ -68,6 +70,8 @@ Create the app: name **Locked in**, default language English (add Dutch later), 
 | Health info (weight, nutrition log) | Yes | No | App functionality | No |
 | Fitness info (workouts, steps, heart rate, sleep) | Yes | No | App functionality | Health Connect parts: Yes |
 | Photos (meal photos) | Yes, processed, not stored | No* | App functionality | Yes |
+| Location (precise and approximate) | Yes, only while tracking a run | No | App functionality | Yes |
+| Photos (post photos) | Yes | No | App functionality, social | Yes |
 | User-generated content (comments) | Yes | No | App functionality | Yes |
 
 \* Processors acting on your behalf (Supabase, Anthropic) are *not* "sharing" under Google's definition.

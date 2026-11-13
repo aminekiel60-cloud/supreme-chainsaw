@@ -59,7 +59,7 @@ export function ReviewCard({
       </View>
 
       <Text style={s.brand}>
-        Locked <Text style={{ color: Colors.lime }}>in</Text> · LOCK IN. LEVEL UP.
+        Locked <Text style={{ color: Colors.lime }}>in</Text>   LOCK IN. LEVEL UP.
       </Text>
     </View>
   );

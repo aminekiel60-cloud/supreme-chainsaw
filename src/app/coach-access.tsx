@@ -26,7 +26,7 @@ export default function CoachScreen() {
           <Text style={[ui.text, { fontWeight: '800' }]}>How Coach works</Text>
         </View>
         <Text style={ui.muted}>
-          Friends always see your workouts. Your calories, macros and meals stay private — unless you turn on “Coach” for a
+          Friends always see your workouts. Your calories, macros and meals stay private, unless you turn on “Coach” for a
           specific friend, like a gym buddy or personal trainer. You can turn it off any time.
         </Text>
       </Card>
@@ -43,7 +43,7 @@ export default function CoachScreen() {
             <Avatar name={c.display_name} url={c.avatar_url} level={c.level} />
             <View style={{ flex: 1 }}>
               <Text style={[ui.text, { fontWeight: '800' }]}>{c.display_name}</Text>
-              <Text style={ui.muted}>🔥 {c.streak} day streak · tap for today’s food and training</Text>
+              <Text style={ui.muted}>{c.streak} day streak. Tap to see today’s food and training.</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
           </Card>

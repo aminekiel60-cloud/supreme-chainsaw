@@ -25,7 +25,7 @@ export function TagFriends({
 
   if (!cloudEnabled) return null;
   if (friends === null) return <Text style={ui.muted}>Loading friends…</Text>;
-  if (friends.length === 0) return <Text style={ui.muted}>Add friends in the Feed tab to tag them in workouts.</Text>;
+  if (friends.length === 0) return <Text style={ui.muted}>Add friends under You, Friends to tag them in workouts.</Text>;
 
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>

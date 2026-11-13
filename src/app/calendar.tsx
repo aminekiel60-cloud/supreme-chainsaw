@@ -89,7 +89,7 @@ export default function CalendarScreen() {
             );
           })}
         </View>
-        <Text style={ui.muted}>Brighter = more habits done · outlined = locked-in day · dot = workout</Text>
+        <Text style={ui.muted}>Brighter means more habits done. A ring means a locked-in day. A dot means a workout.</Text>
       </Card>
 
       <Card style={{ gap: Spacing.md }}>
@@ -98,7 +98,7 @@ export default function CalendarScreen() {
         </SectionTitle>
         <ProgressBar progress={progress} />
         <Text style={ui.muted}>
-          {Math.round(totals.kcal)} kcal · {Math.round(totals.protein)} g protein · {workouts.length} workout
+          {Math.round(totals.kcal)} kcal, {Math.round(totals.protein)} g protein, {workouts.length} workout
           {workouts.length === 1 ? '' : 's'}
         </Text>
         <HabitList date={selected} />

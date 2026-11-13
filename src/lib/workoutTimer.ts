@@ -58,7 +58,7 @@ export function scheduleRestNotification(seconds: number): Promise<string | null
       if (!perm.granted && perm.canAskAgain) perm = await Notifications.requestPermissionsAsync();
       if (!perm.granted) return null;
       return await Notifications.scheduleNotificationAsync({
-        content: { title: 'Rest over 💪', body: 'Next set — lock in.', data: { kind: 'rest' }, sound: true },
+        content: { title: 'Rest over 💪', body: 'Time for your next set.', data: { kind: 'rest' }, sound: true },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.round(seconds), channelId: CHANNEL },
       });
     } catch {

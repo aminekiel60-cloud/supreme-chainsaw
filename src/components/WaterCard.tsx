@@ -88,7 +88,7 @@ export function WaterCard() {
         })}
       </View>
       <Text style={ui.muted}>
-        {done ? 'Goal reached — nice! 💧' : `One bottle = ${size} ml · tap + to drink, tap a full bottle to undo`}
+        {done ? 'Goal reached. Nice work.' : `One bottle is ${size} ml. Tap + to drink, tap a full bottle to undo.`}
       </Text>
     </Card>
   );

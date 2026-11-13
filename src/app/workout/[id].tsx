@@ -84,7 +84,7 @@ export default function WorkoutScreen() {
       routine: { name: workout.title, exercises: (workout.exercises ?? []).map((e) => ({ name: e.name, sets: e.sets.length, restSeconds: e.restSeconds })) },
     });
     dispatch({ type: 'updateWorkout', id: workout.id, changes: { routineId: 'saved' } });
-    Alert.alert('Saved as routine', `“${workout.title}” is now in Train → Routines.`);
+    Alert.alert('Saved as routine', `“${workout.title}” is now under Coach, Routines.`);
   };
 
   const remove = () =>
@@ -118,8 +118,8 @@ export default function WorkoutScreen() {
         </View>
         <Text style={[Type.title, { color: Colors.text, textAlign: 'center' }]}>{workout.title}</Text>
         <Text style={ui.muted}>
-          {info.label} · {prettyDate(workout.date)}
-          {workout.tagged?.length ? ` · with ${workout.tagged.map((t) => t.name).join(', ')}` : ''}
+          {info.label}, {prettyDate(workout.date)}
+          {workout.tagged?.length ? `, with ${workout.tagged.map((t) => t.name).join(', ')}` : ''}
         </Text>
       </View>
 
@@ -218,7 +218,7 @@ export default function WorkoutScreen() {
         <View style={{ alignSelf: 'stretch' }}>
           <SectionTitle>Share your workout</SectionTitle>
           <Text style={ui.muted}>
-            {style === 'sticker' ? 'Transparent sticker — put it on top of your own photo in Instagram Stories.' : 'Your stats on top of your workout photo.'}
+            {style === 'sticker' ? 'A see-through sticker. Put it on top of your own photo in Instagram Stories.' : 'Your stats on top of your workout photo.'}
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: Spacing.sm, alignSelf: 'stretch' }}>

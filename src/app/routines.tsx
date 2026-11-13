@@ -58,7 +58,7 @@ export default function RoutinesScreen() {
 
       {state.routines.length === 0 && (
         <Card>
-          <Text style={ui.muted}>No routines yet. A routine is a list of exercises you can start in one tap — it remembers your sets.</Text>
+          <Text style={ui.muted}>No routines yet. A routine is a list of exercises you can start in one tap. It remembers your sets.</Text>
         </Card>
       )}
 
@@ -78,7 +78,7 @@ export default function RoutinesScreen() {
                 <Text style={[ui.text, { fontWeight: '800', fontSize: 17 }]}>{r.name}</Text>
                 <Text style={ui.muted}>
                   {r.exercises.length} exercise{r.exercises.length === 1 ? '' : 's'}
-                  {r.lastUsed ? ` · last ${prettyDate(r.lastUsed)}` : ''}
+                  {r.lastUsed ? `. Last done ${prettyDate(r.lastUsed)}` : ''}
                 </Text>
               </Pressable>
             )}

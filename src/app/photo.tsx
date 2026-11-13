@@ -149,7 +149,7 @@ export default function PhotoScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={[ui.text, { fontWeight: '700' }]}>{r.name}</Text>
                     <Text style={ui.muted}>
-                      {n.kcal} kcal · P {n.protein}g · C {n.carbs}g · F {n.fat}g
+                      {n.kcal} kcal, {n.protein} g protein, {n.carbs} g carbs, {n.fat} g fat
                     </Text>
                   </View>
                   <TextInput

@@ -93,7 +93,7 @@ export default function CoachClientScreen() {
         {meals.map((f) => (
           <View key={f.id} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
             <Text style={[ui.text, { flex: 1 }]} numberOfLines={1}>
-              <Text style={ui.muted}>{f.meal} · </Text>
+              <Text style={ui.muted}>{f.meal}: </Text>
               {f.name}
             </Text>
             <Text style={{ color: Colors.text, fontWeight: '700' }}>{f.kcal}</Text>
@@ -109,7 +109,7 @@ export default function CoachClientScreen() {
             <Ionicons name={sport(w.type).icon} size={18} color={Colors.lime} />
             <Text style={[ui.text, { flex: 1 }]}>{w.title}</Text>
             <Text style={ui.muted}>
-              {w.durationMin} min{w.distanceKm ? ` · ${formatDistance(w)}` : ''}
+              {w.durationMin} min{w.distanceKm ? `, ${formatDistance(w)}` : ''}
             </Text>
           </View>
         ))}

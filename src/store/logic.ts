@@ -217,9 +217,9 @@ export function newId(): string {
 
 export const ACTIVITY_LEVELS: { id: Activity; label: string; detail: string; factor: number }[] = [
   { id: 'sedentary', label: 'Sedentary', detail: 'Desk job, little exercise', factor: 1.2 },
-  { id: 'light', label: 'Light', detail: 'Exercise 1–3× per week', factor: 1.375 },
-  { id: 'moderate', label: 'Moderate', detail: 'Exercise 3–5× per week', factor: 1.55 },
-  { id: 'active', label: 'Active', detail: 'Hard training 6–7× per week', factor: 1.725 },
+  { id: 'light', label: 'Light', detail: 'Exercise 1 to 3 times a week', factor: 1.375 },
+  { id: 'moderate', label: 'Moderate', detail: 'Exercise 3 to 5 times a week', factor: 1.55 },
+  { id: 'active', label: 'Active', detail: 'Hard training 6 or 7 times a week', factor: 1.725 },
   { id: 'athlete', label: 'Athlete', detail: 'Training twice a day', factor: 1.9 },
 ];
 

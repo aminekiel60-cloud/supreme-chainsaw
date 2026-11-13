@@ -84,7 +84,7 @@ export default function ProfileScreen() {
         )}
         <Button title="Connected devices" icon="watch" variant="ghost" onPress={() => router.push('/devices')} />
         <Text style={ui.muted}>
-          Works with Samsung Health, Garmin Connect, Fitbit, Google Fit and more — they all share their data through Health Connect.
+          Works with Samsung Health, Garmin Connect, Fitbit, Google Fit and more. They all share their data through Health Connect.
         </Text>
         <Text style={ui.muted}>
           • Samsung Health: open Samsung Health → ⋮ → Settings → Health Connect, and allow sharing.{'\n'}• Garmin: in Garmin Connect →

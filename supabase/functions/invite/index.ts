@@ -22,7 +22,7 @@ Deno.serve((req) => {
     return text(
       `You're invited to Locked in 🔒\n\n` +
         `1. Install the Locked in app and create an account.\n` +
-        `2. Open Feed → the add-friend icon → enter this code:\n\n` +
+        `2. Open You, then Friends, and enter this code:\n\n` +
         `        ${code}\n\n` +
         `You and your friend are connected right away.\n\nLOCK IN. LEVEL UP.`,
     );

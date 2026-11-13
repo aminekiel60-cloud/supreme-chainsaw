@@ -77,15 +77,15 @@ export default function DevicesScreen() {
       <Card highlight={connected} style={{ gap: Spacing.md }}>
         <SectionTitle action={<Badge text={connected ? 'CONNECTED' : 'NOT CONNECTED'} />}>Health Connect</SectionTitle>
         <Text style={ui.muted}>
-          Health Connect is Android&apos;s shared health hub. Your watch app writes to it, Locked in reads from it — the same numbers your watch
+          Health Connect is Android&apos;s shared health hub. Your watch app writes to it, Locked in reads from it. The same numbers your watch
           measured, with no extra account.
         </Text>
         {connected ? (
           <>
             <Text style={ui.text}>
               Today: {today ? `${today.steps.toLocaleString('en-US')} steps` : 'nothing synced yet'}
-              {today?.restingHeartRate ? ` · resting HR ${today.restingHeartRate}` : ''}
-              {today?.hrv ? ` · HRV ${today.hrv} ms` : ''}
+              {today?.restingHeartRate ? `, resting heart rate ${today.restingHeartRate}` : ''}
+              {today?.hrv ? `, HRV ${today.hrv} ms` : ''}
             </Text>
             <Button title="Allow new data types" icon="add-circle" variant="ghost" onPress={connect} />
             <Button title="Manage permissions" icon="settings" variant="ghost" onPress={openHealthConnectSettings} />
@@ -101,7 +101,7 @@ export default function DevicesScreen() {
           <View key={title} style={{ flexDirection: 'row', gap: 8 }}>
             <Ionicons name="checkmark-circle" size={18} color={Colors.lime} />
             <Text style={[ui.text, { flex: 1 }]}>
-              {title} <Text style={ui.muted}>— {detail}</Text>
+              {title}: <Text style={ui.muted}>{detail}</Text>
             </Text>
           </View>
         ))}
@@ -139,7 +139,7 @@ export default function DevicesScreen() {
         <SectionTitle action={<Badge text="PLANNED" />}>Direct Garmin & Polar links</SectionTitle>
         <Text style={ui.muted}>
           A direct cloud link adds extras such as training load and heart-rate zones. Garmin only gives that access to approved companies, and
-          Polar needs an API account — both are on the roadmap. Until then, Health Connect delivers the same measurements your watch recorded.
+          Polar needs an API account. Both are on the roadmap. Until then, Health Connect delivers the same measurements your watch recorded.
         </Text>
       </Card>
     </ScrollView>

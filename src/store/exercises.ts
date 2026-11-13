@@ -76,7 +76,7 @@ export function detectRecords(state: AppState, workout: Workout): PersonalRecord
 export function describeRecord(pr: PersonalRecord): string {
   switch (pr.kind) {
     case 'weight':
-      return `${pr.exercise}: ${pr.value} kg — heaviest ever`;
+      return `${pr.exercise}: ${pr.value} kg, heaviest ever`;
     case '1rm':
       return `${pr.exercise}: est. 1RM ${pr.value} kg`;
     case 'volume':

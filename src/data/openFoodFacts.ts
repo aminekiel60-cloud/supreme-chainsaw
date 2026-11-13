@@ -48,7 +48,7 @@ export async function lookupBarcode(barcode: string): Promise<Product | null> {
 
   const name = [p.brands?.split(',')[0]?.trim(), p.product_name_nl || p.product_name_en || p.product_name]
     .filter(Boolean)
-    .join(' – ');
+    .join(' ');
 
   return {
     barcode,

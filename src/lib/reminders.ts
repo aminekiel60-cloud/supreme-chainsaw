@@ -79,7 +79,7 @@ async function plan(state: AppState) {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '📊 Your week in review is ready',
-        body: 'See your workouts, active time and PRs — and share your week.',
+        body: 'See your workouts, active time and PRs, and share your week.',
         data: { kind: 'reminder', url: '/review' },
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: sunday, channelId: CHANNEL },

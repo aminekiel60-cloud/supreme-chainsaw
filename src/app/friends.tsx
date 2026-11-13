@@ -110,10 +110,10 @@ export default function FriendsScreen() {
       <Card highlight style={{ gap: Spacing.md, alignItems: 'center' }}>
         <Text style={ui.statLabel}>YOUR INVITE CODE</Text>
         <Pressable onPress={copyCode} accessibilityLabel="Copy invite code">
-          <Text style={{ color: Colors.lime, fontSize: 32, fontWeight: '900', letterSpacing: 5 }}>{myCode ?? '········'}</Text>
+          <Text style={{ color: Colors.lime, fontSize: 32, fontWeight: '900', letterSpacing: 5 }}>{myCode ?? '. . . . . . . .'}</Text>
         </Pressable>
         <Text style={[ui.muted, { textAlign: 'center' }]}>
-          Share your invite link. When a friend taps it, you&apos;re connected right away — no request to accept.
+          Share your invite link. When a friend taps it, you&apos;re connected right away. No request to accept.
         </Text>
         <View style={{ alignSelf: 'stretch' }}>
           <Button title="Share invite link" icon="share-social" onPress={invite} disabled={!myCode} />
@@ -193,7 +193,7 @@ export default function FriendsScreen() {
 
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle action={<Text style={ui.muted}>{accepted.length}</Text>}>Your friends</SectionTitle>
-        {accepted.length === 0 && <Text style={ui.muted}>No friends yet — search above or share your code.</Text>}
+        {accepted.length === 0 && <Text style={ui.muted}>No friends yet. Search above or share your code.</Text>}
         {accepted.map((f) => {
           const isCoach = coaches.includes(f.friend.id);
           return (
@@ -202,7 +202,7 @@ export default function FriendsScreen() {
                 <Avatar name={f.friend.display_name} url={f.friend.avatar_url} level={f.friend.level} />
                 <View style={{ flex: 1 }}>
                   <Text style={[ui.text, { fontWeight: '700' }]}>{f.friend.display_name}</Text>
-                  <Text style={ui.muted}>Level {f.friend.level} · 🔥 {f.friend.streak}</Text>
+                  <Text style={ui.muted}>Level {f.friend.level}. {f.friend.streak} day streak.</Text>
                 </View>
                 <Pressable
                   hitSlop={10}
@@ -216,7 +216,7 @@ export default function FriendsScreen() {
                 </Pressable>
               </View>
               <View style={s.coachRow}>
-                <Text style={[ui.muted, { flex: 1 }]}>Coach — can see my calories & meals</Text>
+                <Text style={[ui.muted, { flex: 1 }]}>Coach access: can see my calories and meals</Text>
                 <Switch
                   value={isCoach}
                   onValueChange={(on) => {

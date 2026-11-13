@@ -167,8 +167,10 @@ export default function ActiveWorkoutScreen() {
   };
 
   const finish = () => {
+    // If you ticked sets off, only the ticked ones count. If you never used the ticks, every filled-in set counts.
+    const usedTicks = aw.exercises.some((e) => e.sets.some((x) => x.done));
     const exercises = aw.exercises
-      .map((e) => ({ ...e, sets: e.sets.filter((x) => x.reps > 0).map(({ done: _done, ...x }) => x) }))
+      .map((e) => ({ ...e, sets: e.sets.filter((x) => x.reps > 0 && (!usedTicks || x.done)).map(({ done: _done, ...x }) => x) }))
       .filter((e) => e.sets.length > 0);
     if (exercises.length === 0) {
       Alert.alert('Nothing logged yet', 'Fill in reps for at least one set, or discard the workout.');
@@ -269,7 +271,7 @@ export default function ActiveWorkoutScreen() {
             placeholderTextColor={Colors.textFaint}
           />
           <Text style={ui.muted}>
-            {doneSets} sets · {volume.toLocaleString('en-US')} kg
+            {doneSets} sets, {volume.toLocaleString('en-US')} kg
           </Text>
         </View>
 
@@ -372,7 +374,7 @@ function ExerciseCard({
         <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/exercise/[name]', params: { name: exercise.name } })}>
           <Text style={[ui.text, { fontWeight: '800', fontSize: 16 }]}>{exercise.name}</Text>
           <Text style={ui.muted}>
-            {records.best1RM ? `PR ${records.bestWeight!.weight} kg × ${records.bestWeight!.reps} · est. 1RM ${records.best1RM.value} kg` : 'First time — set your PR today'}
+            {records.best1RM ? `Best ${records.bestWeight!.weight} kg × ${records.bestWeight!.reps}. Est. 1RM ${records.best1RM.value} kg` : 'First time. Set your PR today.'}
           </Text>
         </Pressable>
         {newPr && (
@@ -504,7 +506,7 @@ function SetRow({
         {set.rpe ? <Text style={s.rpe}>@{set.rpe}</Text> : null}
       </Pressable>
       <Text style={[s.col, s.colPrev, ui.muted]} numberOfLines={1}>
-        {previous ? `${previous.weight}×${previous.reps}` : '—'}
+        {previous ? `${previous.weight}×${previous.reps}` : ''}
       </Text>
       <TextInput
         style={[s.col, s.colNum, s.input, set.done && s.inputDone]}

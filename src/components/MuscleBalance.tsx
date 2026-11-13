@@ -32,7 +32,7 @@ export function MuscleBalance() {
         </View>
       ))}
       <Text style={ui.muted}>
-        {sets[least] === 0 ? `No ${MUSCLE_LABELS[least].toLowerCase()} yet this week.` : `Least trained: ${MUSCLE_LABELS[least].toLowerCase()}.`} Aim for 10–20 working sets per muscle per week.
+        {sets[least] === 0 ? `No ${MUSCLE_LABELS[least].toLowerCase()} yet this week.` : `Least trained: ${MUSCLE_LABELS[least].toLowerCase()}.`} Aim for 10 to 20 working sets per muscle each week.
       </Text>
     </Card>
   );

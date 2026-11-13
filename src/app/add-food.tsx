@@ -163,7 +163,7 @@ function FoodRow({ food, onPress, onLongPress }: { food: QuickFood; onPress: () 
         <View style={{ flex: 1 }}>
           <Text style={ui.text}>{food.name}</Text>
           <Text style={ui.muted}>
-            {food.kcal} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g
+            {food.kcal} kcal, {food.protein} g protein, {food.carbs} g carbs, {food.fat} g fat
           </Text>
         </View>
         <Ionicons name="add-circle" size={26} color={Colors.lime} />

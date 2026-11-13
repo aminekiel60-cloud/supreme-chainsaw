@@ -248,7 +248,7 @@ export default function LogWorkoutScreen() {
           ) : (
             <View style={{ alignItems: 'center', gap: 6 }}>
               <Ionicons name="camera" size={28} color={Colors.lime} />
-              <Text style={ui.muted}>Add a photo {cloudEnabled ? '— friends see it in the feed' : ''}</Text>
+              <Text style={ui.muted}>Add a photo{cloudEnabled ? '. Friends see it in the feed.' : ''}</Text>
             </View>
           )}
         </Pressable>

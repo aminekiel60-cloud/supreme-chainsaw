@@ -41,7 +41,7 @@ export const DEMO_FEED: FeedPost[] = [
     id: 'p2',
     friendId: 'f3',
     when: '5h ago',
-    title: 'Push day — new bench PR',
+    title: 'Push day, new bench PR',
     stats: [
       { label: 'Exercises', value: '5' },
       { label: 'Top set', value: '70 kg × 5' },

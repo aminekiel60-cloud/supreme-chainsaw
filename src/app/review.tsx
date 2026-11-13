@@ -91,8 +91,8 @@ export default function ReviewScreen() {
                 {w.title}
               </Text>
               <Text style={ui.muted}>
-                {prettyDate(w.date)} · {w.durationMin} min{w.distanceKm ? ` · ${formatDistance(w)}` : ''}
-                {w.prs?.length ? ` · 🏆 ${w.prs.length} PR` : ''}
+                {prettyDate(w.date)}, {w.durationMin} min{w.distanceKm ? `, ${formatDistance(w)}` : ''}
+                {w.prs?.length ? `, ${w.prs.length} PR` : ''}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={Colors.textFaint} />

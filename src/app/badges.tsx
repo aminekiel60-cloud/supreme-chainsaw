@@ -15,7 +15,7 @@ export default function BadgesScreen() {
   return (
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 48 }}>
       <Text style={ui.muted}>
-        {earned} of {all.length} earned · bronze, silver, gold and legend tiers
+        {earned} of {all.length} earned. Each badge has bronze, silver, gold and legend levels.
       </Text>
       <BadgeGrid items={[...all.filter((b) => b.earned), ...all.filter((b) => !b.earned)]} />
     </ScrollView>

@@ -26,7 +26,7 @@ const CONFETTI_COLORS = [Colors.lime, '#C8FF7A', '#FFFFFF', Colors.carbs];
 
 const TEXT: Record<CelebrationKind, (level: number) => { title: string; subtitle: string }> = {
   lockedIn: () => ({ title: 'LOCKED IN 🔒', subtitle: 'Your day counts towards your streak.' }),
-  perfect: () => ({ title: '100% — PERFECT DAY', subtitle: 'Every habit done. Legendary.' }),
+  perfect: () => ({ title: '100%. PERFECT DAY', subtitle: 'Every habit done. Legendary.' }),
   levelUp: (level) => ({ title: `LEVEL ${level}`, subtitle: 'Level up! Keep locking in.' }),
 };
 

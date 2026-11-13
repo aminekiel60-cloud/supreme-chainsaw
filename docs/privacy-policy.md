@@ -1,6 +1,6 @@
-# Locked in — Privacy policy
+# Locked in: Privacy policy
 
-_Last updated: 8 November 2026_
+_Last updated: 14 November 2026_
 
 ## Who we are
 
@@ -12,20 +12,26 @@ Locked in is a fitness, nutrition and habit app made by [Your full name], Belgiu
 • Profile: age, sex, height, weight, activity level and goal, used only to calculate your calorie and macro goals.
 • Your log: foods, workouts, habits and settings you enter.
 • Health Connect data (only if you turn it on): steps, sleep sessions and sleep stages, heart rate, resting heart rate, heart-rate variability, active calories burned, body weight, exercise sessions and distance.
-• Social: friends you add, posts that the app shares to your friends (your workouts and locked-in days), likes and comments.
+• Social: friends you add, your posts (workouts, locked-in days, photos, meals and captions), flexes and comments, people you block and posts you report.
+• Location (only while you track a run, walk or ride): your GPS route, distance and pace. Location is never read in the background.
+• Progress photos you take in Body stay on your phone and are never uploaded.
 • Meal photos you choose to analyse with AI.
 
 ## How we use it
 
-Only to run the app for you: show your progress, calculate goals, streaks and points, sync your data between devices, show your activity to the friends you added, and estimate the nutrition of meal photos. We do not sell your data, show ads or use your data for advertising.
+Only to run the app for you: show your progress, calculate goals, streaks and points, sync your data between devices, show your posts to your friends (or to all users when you choose Everyone for a post), keep the community safe with blocking and reporting, estimate the nutrition of meal photos and write your weekly coach advice. We do not sell your data, show ads or use your data for advertising.
+
+## Who sees your posts
+
+Your posts are shown to your friends. Only when you choose Everyone for a post is it shown to all Locked in users in For You, together with your name, profile picture and level. You can change this or delete the post at any time. You can block anyone: you then no longer see each other’s posts and comments. Reported posts are checked by us; a post with several reports is hidden from For You.
 
 ## Health Connect
 
-Data read from Health Connect is used only to show your steps, sleep, heart rate, calories burned and readiness score in the app, to tick your steps and sleep habits, to keep your body-weight log up to date, and to add your workouts to your training log. It is never used for advertising, never sold and never shared with third parties other than the processors listed below that store your synced log. The use of information received from Health Connect adheres to the Health Connect Permissions policy, including the Limited Use requirements. You can turn the connection off at any time in Profile → Health Connect.
+Data read from Health Connect is used only to show your steps, sleep, heart rate, calories burned and readiness score in the app, to tick your steps and sleep habits, to keep your body-weight log up to date, and to add your workouts to your training log. It is never used for advertising, never sold and never shared with third parties other than the processors listed below that store your synced log. The use of information received from Health Connect adheres to the Health Connect Permissions policy, including the Limited Use requirements. You can turn the connection off at any time in You, Settings, Health Connect.
 
-## Meal photos and AI
+## AI features
 
-When you use AI photo, the photo is sent to Anthropic (Claude) to recognise the food. We do not store your photos. Anthropic processes the photo to return the result and does not use it to train its models.
+When you use AI photo, the photo is sent to Anthropic (Claude) to recognise the food. We do not store these photos. When you ask the weekly coach for advice, your totals for the week (workouts, food, sleep and weight, without your name or photos) are sent to Anthropic to write it. Anthropic processes this data to return the result and does not use it to train its models.
 
 ## Who processes your data
 
@@ -41,7 +47,7 @@ We process your data to provide the service you signed up for (contract). Health
 
 ## How long we keep it
 
-As long as you have an account. When you delete your account (Profile → Delete my account), all your data, posts, comments and friendships are deleted immediately from our database.
+As long as you have an account. When you delete your account (You, Settings, Delete my account), all your data, posts, comments and friendships are deleted immediately from our database.
 
 ## Your rights
 
