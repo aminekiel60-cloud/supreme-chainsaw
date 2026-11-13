@@ -12,11 +12,14 @@ export function LineChart({
   height = 140,
   unit = '',
   color = Colors.lime,
+  trend,
 }: {
   points: ChartPoint[];
   height?: number;
   unit?: string;
   color?: string;
+  /** A smoothed line drawn on top (same length as points), e.g. a 7-day average */
+  trend?: number[];
 }) {
   const width = 320;
   const pad = { top: 14, right: 12, bottom: 24, left: 12 };
@@ -27,7 +30,7 @@ export function LineChart({
       </View>
     );
   }
-  const values = points.map((p) => p.value);
+  const values = [...points.map((p) => p.value), ...(trend ?? [])];
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || Math.max(1, max * 0.1);
@@ -54,19 +57,29 @@ export function LineChart({
           <Line key={f} x1={pad.left} x2={width - pad.right} y1={pad.top + f * (height - pad.top - pad.bottom)} y2={pad.top + f * (height - pad.top - pad.bottom)} stroke={Colors.border} strokeWidth={1} />
         ))}
         {points.length > 1 && <Path d={area} fill="url(#area)" />}
-        <Path d={line} stroke={color} strokeWidth={3} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+        <Path d={line} stroke={color} strokeWidth={trend ? 1.5 : 3} strokeOpacity={trend ? 0.6 : 1} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+        {trend && trend.length === points.length && points.length > 1 && (
+          <Path
+            d={trend.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ')}
+            stroke={Colors.lime}
+            strokeWidth={3}
+            fill="none"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        )}
         {points.map((p, i) => (
           <Circle key={i} cx={x(i)} cy={y(p.value)} r={i === points.length - 1 ? 5 : 3} fill={i === points.length - 1 ? color : Colors.background} stroke={color} strokeWidth={2} />
         ))}
       </Svg>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: -18, paddingHorizontal: 4 }}>
         <Text style={[ui.muted, { fontSize: 11 }]}>
-          {first.label} · {first.value}
+          {first.label}: {first.value}
           {unit}
         </Text>
         {showLabels.length > 1 && (
           <Text style={[ui.muted, { fontSize: 11, color: color }]}>
-            {last.label} · {last.value}
+            {last.label}: {last.value}
             {unit}
           </Text>
         )}

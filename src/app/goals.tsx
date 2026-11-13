@@ -1,9 +1,10 @@
-/** GOALS — set your own calories, macros and daily habit targets. */
+/** GOALS: your calories, macros, training days and daily habit targets. */
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Switch, Text, View } from 'react-native';
 
 import { FormScroll } from '@/components/FormScroll';
+import { Pill } from '@/components/layout';
 import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { calculateGoals } from '@/store/logic';
@@ -13,6 +14,8 @@ const WATER_GOALS = [1500, 2000, 2500, 3000, 3500, 4000];
 const BOTTLES = [250, 330, 500, 750, 1000];
 const STEP_GOALS = [6000, 8000, 10000, 12000, 15000];
 const SLEEP_HOURS = [22, 23, 24];
+const TRAINING_DAYS = [2, 3, 4, 5, 6];
+const TRAINING_KCAL = [0, 200, 300, 400, 500];
 
 const num = (v: string) => Math.round(Number(v.replace(',', '.')) || 0);
 
@@ -28,6 +31,8 @@ export default function GoalsScreen() {
   const [water, setWater] = useState(g.waterMl);
   const [bottle, setBottle] = useState(state.settings.bottleMl);
   const [sleepBy, setSleepBy] = useState(g.sleepByHour);
+  const [perWeek, setPerWeek] = useState(g.workoutsPerWeek);
+  const [trainingKcal, setTrainingKcal] = useState(g.trainingDayKcal);
 
   const calculated = state.profile ? calculateGoals(state.profile) : null;
   const macroKcal = num(protein) * 4 + num(carbs) * 4 + num(fat) * 9;
@@ -38,7 +43,7 @@ export default function GoalsScreen() {
       : calculated ?? { kcal: g.kcal, protein: g.protein, carbs: g.carbs, fat: g.fat };
     dispatch({
       type: 'setGoals',
-      goals: { ...g, ...macros, customMacros: custom, steps, waterMl: water, sleepByHour: sleepBy },
+      goals: { ...g, ...macros, customMacros: custom, steps, waterMl: water, sleepByHour: sleepBy, workoutsPerWeek: perWeek, trainingDayKcal: trainingKcal },
     });
     dispatch({ type: 'setSettings', settings: { ...state.settings, bottleMl: bottle } });
     router.back();
@@ -49,7 +54,7 @@ export default function GoalsScreen() {
       <Card style={{ gap: Spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flex: 1 }}>
-            <SectionTitle>Calories & macros</SectionTitle>
+            <SectionTitle>Calories and macros</SectionTitle>
             <Text style={ui.muted}>{custom ? 'Your own numbers' : 'Calculated from your profile'}</Text>
           </View>
           <Switch
@@ -68,17 +73,28 @@ export default function GoalsScreen() {
               <Field label="Fat g" keyboardType="numeric" value={fat} onChangeText={setFat} />
             </View>
             <Text style={[ui.muted, Math.abs(macroKcal - num(kcal)) > 150 && { color: Colors.fat }]}>
-              Your macros add up to {macroKcal} kcal
-              {Math.abs(macroKcal - num(kcal)) > 150 ? ` — that's ${macroKcal > num(kcal) ? 'more' : 'less'} than your calorie goal` : ' ✓'}
+              Your macros add up to {macroKcal} kcal.
+              {Math.abs(macroKcal - num(kcal)) > 150 ? ` That is ${macroKcal > num(kcal) ? 'more' : 'less'} than your calorie goal.` : ' That matches your calorie goal.'}
             </Text>
           </>
         ) : (
           calculated && (
-            <Text style={ui.text}>
-              {calculated.kcal} kcal · P {calculated.protein} g · C {calculated.carbs} g · F {calculated.fat} g
-            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              <Pill text={`${calculated.kcal} kcal`} />
+              <Pill text={`Protein ${calculated.protein} g`} />
+              <Pill text={`Carbs ${calculated.carbs} g`} />
+              <Pill text={`Fat ${calculated.fat} g`} />
+            </View>
           )
         )}
+      </Card>
+
+      <Card style={{ gap: Spacing.md }}>
+        <SectionTitle>Training</SectionTitle>
+        <Text style={ui.muted}>Days a week you want to train</Text>
+        <Chips values={TRAINING_DAYS} selected={perWeek} onSelect={setPerWeek} format={(v) => `${v} days`} />
+        <Text style={ui.muted}>Extra calories on days you train (added as carbs)</Text>
+        <Chips values={TRAINING_KCAL} selected={trainingKcal} onSelect={setTrainingKcal} format={(v) => (v ? `+${v} kcal` : 'None')} />
       </Card>
 
       <Card style={{ gap: Spacing.md }}>

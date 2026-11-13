@@ -70,6 +70,17 @@ export default function AddFoodScreen() {
         </Pressable>
       </View>
 
+      <Pressable onPress={() => router.push({ pathname: '/meals', params: { meal, date } })}>
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+          <Ionicons name="bookmark" size={22} color={Colors.lime} />
+          <View style={{ flex: 1 }}>
+            <Text style={[ui.text, { fontWeight: '700' }]}>Saved meals and recipes</Text>
+            <Text style={ui.muted}>{state.savedMeals.length ? `${state.savedMeals.length} saved. Log one in a tap.` : 'Save a meal you eat often, log it in a tap.'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textFaint} />
+        </Card>
+      </Pressable>
+
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Manual entry</SectionTitle>
         <Field label="Food" placeholder="e.g. Chicken wrap" value={name} onChangeText={setName} />
@@ -96,7 +107,7 @@ export default function AddFoodScreen() {
         <Pressable onPress={() => router.push('/my-food')}>
           <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
             <Ionicons name="bookmark-outline" size={22} color={Colors.lime} />
-            <Text style={[ui.muted, { flex: 1 }]}>Save your own recipes and favourite meals to add them in one tap. Long-press one to edit it.</Text>
+            <Text style={[ui.muted, { flex: 1 }]}>Create foods that are not in a database, like your mum's lasagne. Hold one to edit it.</Text>
           </Card>
         </Pressable>
       )}

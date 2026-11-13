@@ -110,13 +110,20 @@ export default function FoodScreen() {
                       {f.name}
                     </Text>
                     <Text style={ui.muted}>
-                      {amountLabel(f) ? `${amountLabel(f)} · ` : ''}P {Math.round(f.protein)}g · C {Math.round(f.carbs)}g · F {Math.round(f.fat)}g
+                      {amountLabel(f) ? `${amountLabel(f)}   ` : ''}
+                      <Text style={{ color: Colors.protein }}>P</Text> {Math.round(f.protein)}  <Text style={{ color: Colors.carbs }}>C</Text> {Math.round(f.carbs)}  <Text style={{ color: Colors.fat }}>F</Text> {Math.round(f.fat)}
                     </Text>
                   </View>
                   <Text style={{ color: Colors.text, fontWeight: '800' }}>{Math.round(f.kcal)}</Text>
                   <Ionicons name="chevron-forward" size={16} color={Colors.textFaint} />
                 </Pressable>
               ))}
+              {mealItems.length > 1 && (
+                <Pressable onPress={() => router.push({ pathname: '/meals', params: { from: meal, date: day, meal } })} style={s.copy}>
+                  <Ionicons name="bookmark-outline" size={16} color={Colors.lime} />
+                  <Text style={{ color: Colors.lime, fontWeight: '700' }}>Save as a meal</Text>
+                </Pressable>
+              )}
               {canCopy && (
                 <Pressable onPress={() => copyFromYesterday(meal)} style={s.copy}>
                   <Ionicons name="copy-outline" size={16} color={Colors.lime} />
