@@ -6,6 +6,7 @@ import { Alert, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
+import { useUnits } from '@/lib/units';
 import { keepPhoto, pickPhoto } from '@/lib/photos';
 import { addDays, prettyDate, todayKey } from '@/store/dates';
 import { newId } from '@/store/logic';
@@ -27,11 +28,12 @@ function movingAverage(values: number[], size = 7) {
 
 export function WeightPanel() {
   const { state, dispatch } = useStore();
+  const units = useUnits();
   const entries = state.bodyWeight;
   const latest = entries[entries.length - 1];
-  const [kg, setKg] = useState(latest ? String(latest.kg) : state.profile ? String(state.profile.weightKg) : '');
+  const [kg, setKg] = useState(latest ? String(units.show(latest.kg)) : state.profile ? String(units.show(state.profile.weightKg)) : '');
   const [date, setDate] = useState(todayKey());
-  const value = num(kg);
+  const value = units.toKg(num(kg));
   const valid = value >= 30 && value <= 300;
 
   const recent = entries.slice(-60);
@@ -44,7 +46,7 @@ export function WeightPanel() {
   const save = () => {
     haptics.add();
     dispatch({ type: 'logBodyWeight', entry: { date, kg: Math.round(value * 10) / 10 } });
-    Alert.alert('Saved', date === todayKey() ? `${value} kg today. Your calorie goals are updated too.` : `${value} kg on ${prettyDate(date)}.`);
+    Alert.alert('Saved', date === todayKey() ? `${num(kg)} ${units.unit} today. Your calorie goals are updated too.` : `${num(kg)} ${units.unit} on ${prettyDate(date)}.`);
   };
 
   return (
@@ -52,13 +54,13 @@ export function WeightPanel() {
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <Card style={s.stat}>
           <Text style={ui.statLabel}>NOW</Text>
-          <Text style={ui.statValue}>{latest ? `${latest.kg} kg` : state.profile ? `${state.profile.weightKg} kg` : 'None'}</Text>
+          <Text style={ui.statValue}>{latest ? units.text(latest.kg) : state.profile ? units.text(state.profile.weightKg) : 'None'}</Text>
           <Text style={ui.muted}>{latest ? prettyDate(latest.date) : 'From your profile'}</Text>
         </Card>
         <Card style={s.stat}>
           <Text style={ui.statLabel}>LAST 30 DAYS</Text>
           <Text style={[ui.statValue, change !== null && change > 0 && state.profile?.goal === 'cut' && { color: Colors.fat }]}>
-            {change === null ? 'None' : `${change > 0 ? '+' : ''}${change} kg`}
+            {change === null ? 'None' : `${change > 0 ? '+' : ''}${units.show(change)} ${units.unit}`}
           </Text>
           <Text style={ui.muted}>{goal}</Text>
         </Card>
@@ -66,13 +68,18 @@ export function WeightPanel() {
 
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Trend</SectionTitle>
-        <LineChart points={recent.map((e) => ({ label: short(e.date), value: e.kg }))} trend={recent.length > 2 ? trend : undefined} unit=" kg" color={Colors.carbs} />
+        <LineChart
+          points={recent.map((e) => ({ label: short(e.date), value: units.show(e.kg) }))}
+          trend={recent.length > 2 ? trend.map(units.show) : undefined}
+          unit={` ${units.unit}`}
+          color={Colors.carbs}
+        />
         {recent.length > 2 && <Text style={ui.muted}>The lime line is your 7-day average. It ignores the normal ups and downs from water and food.</Text>}
       </Card>
 
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Log weight</SectionTitle>
-        <Field label="Weight (kg)" keyboardType="decimal-pad" placeholder="e.g. 74.5" value={kg} onChangeText={setKg} />
+        <Field label={`Weight (${units.unit})`} keyboardType="decimal-pad" placeholder={units.unit === 'lb' ? 'e.g. 165' : 'e.g. 74.5'} value={kg} onChangeText={setKg} />
         <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
           <Chip label="Today" active={date === todayKey()} onPress={() => setDate(todayKey())} />
           <Chip label="Yesterday" active={date === addDays(todayKey(), -1)} onPress={() => setDate(addDays(todayKey(), -1))} />
@@ -87,7 +94,7 @@ export function WeightPanel() {
           {[...entries].reverse().slice(0, 30).map((e) => (
             <View key={e.date} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
               <Text style={[ui.text, { flex: 1 }]}>{prettyDate(e.date)}</Text>
-              <Text style={{ color: Colors.text, fontWeight: '800' }}>{e.kg} kg</Text>
+              <Text style={{ color: Colors.text, fontWeight: '800' }}>{units.text(e.kg)}</Text>
               <Pressable hitSlop={8} onPress={() => dispatch({ type: 'removeBodyWeight', date: e.date })} accessibilityLabel={`Delete ${prettyDate(e.date)}`}>
                 <Ionicons name="close" size={18} color={Colors.textFaint} />
               </Pressable>

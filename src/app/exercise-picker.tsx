@@ -10,7 +10,7 @@ import { exerciseGuide } from '@/data/exerciseGuide';
 import { MUSCLE_GROUPS, MUSCLE_LABELS } from '@/data/exercises';
 import { haptics } from '@/lib/haptics';
 import { setDraftPick, type PickerTarget } from '@/lib/workouts';
-import { allExercises, closestExercise, exerciseHistory } from '@/store/exercises';
+import { allExercises, closestExercise, exerciseHistory, matchesSearch } from '@/store/exercises';
 import { useStore } from '@/store/store';
 import type { Exercise, MuscleGroup } from '@/store/types';
 
@@ -25,8 +25,15 @@ export default function ExercisePickerScreen() {
   const all = useMemo(() => allExercises(state), [state]);
   const q = query.trim().toLowerCase();
   const list = all
-    .filter((e) => (!muscle || e.muscle === muscle) && (!q || e.name.toLowerCase().includes(q)))
-    .sort((a, b) => (b.lastDate ?? '').localeCompare(a.lastDate ?? '') || b.times - a.times || a.name.localeCompare(b.name));
+    .filter((e) => (!muscle || e.muscle === muscle) && matchesSearch(e.name, query))
+    .sort(
+      (a, b) =>
+        (b.lastDate ?? '').localeCompare(a.lastDate ?? '') ||
+        b.times - a.times ||
+        Number(Boolean(b.core)) - Number(Boolean(a.core)) ||
+        a.name.length - b.name.length ||
+        a.name.localeCompare(b.name),
+    );
   const exact = all.some((e) => e.name.toLowerCase() === q);
   const suggestion = q.length > 3 ? closestExercise(query) : null;
 
@@ -39,7 +46,9 @@ export default function ExercisePickerScreen() {
     if (target === 'active' && state.activeWorkout) {
       // Prefill with last time's sets, so you only have to tick them off.
       const last = exerciseHistory(state, name)[0];
-      const sets = last ? last.sets.map((s) => ({ reps: s.reps, weight: s.weight, warmup: s.warmup, done: false })) : [{ reps: 0, weight: 0, done: false }];
+      const sets = last
+        ? last.sets.map((s) => ({ reps: s.reps, weight: s.weight, seconds: s.seconds, meters: s.meters, warmup: s.warmup, done: false }))
+        : [{ reps: 0, weight: 0, done: false }];
       const exercise: Exercise = { name, sets };
       dispatch({ type: 'setActiveWorkout', workout: { ...state.activeWorkout, exercises: [...state.activeWorkout.exercises, exercise] } });
     } else if (target === 'routine' && routineId) {

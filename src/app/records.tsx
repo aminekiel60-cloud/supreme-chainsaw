@@ -10,12 +10,14 @@ import { Colors, Spacing } from '@/constants/theme';
 import { MUSCLE_LABELS } from '@/data/exercises';
 import { prettyDate } from '@/store/dates';
 import { allExercises, exerciseRecords } from '@/store/exercises';
+import { useUnits } from '@/lib/units';
 import { useStore } from '@/store/store';
 
 type Sort = 'strength' | 'recent';
 
 export default function RecordsScreen() {
   const { state } = useStore();
+  const units = useUnits();
   const [sort, setSort] = useState<Sort>('strength');
   const rows = allExercises(state)
     .filter((e) => e.times > 0)
@@ -52,12 +54,12 @@ export default function RecordsScreen() {
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: Colors.lime, fontSize: 22, fontWeight: '900' }}>{best.weight} kg</Text>
+                  <Text style={{ color: Colors.lime, fontSize: 22, fontWeight: '900' }}>{units.text(best.weight)}</Text>
                   <Text style={ui.muted}>for {best.reps} {best.reps === 1 ? 'rep' : 'reps'}</Text>
                 </View>
               </View>
               <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-                {e.records.bestVolume && <Pill icon="layers" text={`Best session ${e.records.bestVolume.value.toLocaleString('en-US')} kg`} />}
+                {e.records.bestVolume && <Pill icon="layers" text={`Best session ${units.show(e.records.bestVolume.value).toLocaleString('en-US')} ${units.unit}`} />}
                 <Pill icon="repeat" text={`${e.records.sessions} ${e.records.sessions === 1 ? 'session' : 'sessions'}`} />
               </View>
             </Card>

@@ -3,6 +3,10 @@
  * Muscle groups power the "muscles trained this week" overview.
  */
 import type { MuscleGroup } from '@/store/types';
+import { EXTRA_EXERCISES } from './exerciseLibraryExtra';
+
+/** What you log for each set: kg and reps (default), bodyweight plus extra kg and reps, seconds, or metres. */
+export type TrackMode = 'weight' | 'bodyweight' | 'time' | 'distance';
 
 export type LibraryExercise = {
   name: string;
@@ -10,6 +14,9 @@ export type LibraryExercise = {
   equipment: 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'kettlebell' | 'other';
   /** True when the weight is the barbell + plates (for the plate calculator) */
   bar?: boolean;
+  track?: TrackMode;
+  /** One of the 70 common exercises (shown first in lists) */
+  core?: boolean;
 };
 
 export const MUSCLE_LABELS: Record<MuscleGroup, string> = {
@@ -29,7 +36,7 @@ export const MUSCLE_LABELS: Record<MuscleGroup, string> = {
 
 export const MUSCLE_GROUPS = Object.keys(MUSCLE_LABELS) as MuscleGroup[];
 
-export const EXERCISE_LIBRARY: LibraryExercise[] = [
+const CORE: LibraryExercise[] = [
   // Chest
   { name: 'Bench press', muscle: 'chest', equipment: 'barbell', bar: true },
   { name: 'Incline bench press', muscle: 'chest', equipment: 'barbell', bar: true },
@@ -112,7 +119,78 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = [
   { name: 'Jump rope', muscle: 'cardio', equipment: 'other' },
 ];
 
+const CORE_TRACK: Record<string, TrackMode> = {
+  'Push-up': 'bodyweight',
+  Dip: 'bodyweight',
+  'Pull-up': 'bodyweight',
+  'Chin-up': 'bodyweight',
+  'Triceps dip': 'bodyweight',
+  'Hanging leg raise': 'bodyweight',
+  Burpee: 'bodyweight',
+  Plank: 'time',
+  Treadmill: 'time',
+  'Stair climber': 'time',
+  'Jump rope': 'time',
+  'Rowing machine': 'time',
+  'Farmer’s walk': 'distance',
+};
+
+const EQUIPMENT: Record<string, LibraryExercise['equipment']> = {
+  b: 'barbell',
+  d: 'dumbbell',
+  m: 'machine',
+  c: 'cable',
+  w: 'bodyweight',
+  k: 'kettlebell',
+  o: 'other',
+};
+const TRACK: Record<string, TrackMode> = { w: 'bodyweight', t: 'time', d: 'distance' };
+
+/** The 70 common exercises first, then 683 more from the open exercise database. */
+export const EXERCISE_LIBRARY: LibraryExercise[] = [
+  ...CORE.map((e) => ({ ...e, core: true, track: CORE_TRACK[e.name] ?? e.track })),
+  ...EXTRA_EXERCISES.map(([name, muscle, flags]) => ({
+    name,
+    muscle,
+    equipment: EQUIPMENT[flags[0]] ?? 'other',
+    track: TRACK[flags[1]] ?? 'weight',
+    bar: flags.includes('!'),
+  })),
+];
+
 const byName = new Map(EXERCISE_LIBRARY.map((e) => [e.name.toLowerCase(), e]));
+
+/** Gym slang people type in search. */
+export const ALIASES: Record<string, string> = {
+  rdl: 'Romanian deadlift',
+  ohp: 'Overhead press',
+  bss: 'Bulgarian split squat',
+  sldl: 'Stiff-leg deadlift',
+  'skull crushers': 'Skull crusher',
+  pullup: 'Pull-up',
+  pullups: 'Pull-up',
+  chinup: 'Chin-up',
+  pushup: 'Push-up',
+  pushups: 'Push-up',
+  'military press': 'Overhead press',
+  'shoulder press': 'Dumbbell shoulder press',
+  'leg curls': 'Leg curl',
+  'lat pull': 'Lat pulldown',
+  pulldown: 'Lat pulldown',
+  flyes: 'Cable fly',
+  'pec fly': 'Pec deck',
+  'calf raise': 'Standing calf raise',
+  'cable row': 'Seated cable row',
+  'bent over row': 'Barbell row',
+  'hip thrusts': 'Hip thrust',
+  'ab wheel': 'Ab wheel rollout',
+};
+
+/** How to log an exercise's sets (your own exercises can set it too). */
+export function trackMode(name: string, custom?: { name: string; track?: TrackMode }[]): TrackMode {
+  const own = custom?.find((e) => e.name.toLowerCase() === name.trim().toLowerCase());
+  return own?.track ?? libraryExercise(name)?.track ?? 'weight';
+}
 
 export function libraryExercise(name: string): LibraryExercise | undefined {
   return byName.get(name.trim().toLowerCase());

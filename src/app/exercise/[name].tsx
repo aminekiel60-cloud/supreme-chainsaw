@@ -11,6 +11,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { MUSCLE_GROUPS, MUSCLE_LABELS, libraryExercise } from '@/data/exercises';
 import { prettyDate } from '@/store/dates';
 import { closestExercise, exerciseHistory, exerciseRecords, muscleOf, renameExercise, suggestNext } from '@/store/exercises';
+import { useUnits } from '@/lib/units';
 import { useStore } from '@/store/store';
 
 type Metric = 'weight' | 'reps' | 'volume';
@@ -18,6 +19,7 @@ type Metric = 'weight' | 'reps' | 'volume';
 export default function ExerciseScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const { state, dispatch } = useStore();
+  const units = useUnits();
   const [metric, setMetric] = useState<Metric>('weight');
   const history = exerciseHistory(state, name);
   const records = exerciseRecords(state, name);
@@ -93,9 +95,9 @@ export default function ExerciseScreen() {
       <ExerciseDemo name={name} />
 
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <Record label="Best weight" value={records.bestWeight ? `${records.bestWeight.weight} kg` : 'None'} sub={records.bestWeight ? `for ${records.bestWeight.reps} reps` : ''} />
-        <Record label="Most reps" value={mostReps ? `${mostReps.reps}` : 'None'} sub={mostReps ? `at ${mostReps.weight} kg` : ''} />
-        <Record label="Best volume" value={records.bestVolume ? `${records.bestVolume.value.toLocaleString('en-US')}` : 'None'} sub={records.bestVolume ? 'kg in a session' : ''} />
+        <Record label="Best weight" value={records.bestWeight ? units.text(records.bestWeight.weight) : 'None'} sub={records.bestWeight ? `for ${records.bestWeight.reps} reps` : ''} />
+        <Record label="Most reps" value={mostReps ? `${mostReps.reps}` : 'None'} sub={mostReps ? `at ${units.text(mostReps.weight)}` : ''} />
+        <Record label="Best volume" value={records.bestVolume ? `${units.show(records.bestVolume.value).toLocaleString('en-US')}` : 'None'} sub={records.bestVolume ? `${units.unit} in a session` : ''} />
       </View>
 
       <Card style={{ gap: Spacing.md }}>
@@ -105,7 +107,7 @@ export default function ExerciseScreen() {
           <Chip label="Reps at top" active={metric === 'reps'} onPress={() => setMetric('reps')} />
           <Chip label="Volume" active={metric === 'volume'} onPress={() => setMetric('volume')} />
         </View>
-        <LineChart points={points.slice(-20)} unit={metric === 'reps' ? ' reps' : ' kg'} />
+        <LineChart points={points.slice(-20).map((x) => (metric === 'reps' ? x : { ...x, value: units.show(x.value) }))} unit={metric === 'reps' ? ' reps' : ` ${units.unit}`} />
         {suggestion && <Text style={{ color: Colors.lime, fontWeight: '600' }}>Next time: {suggestion.hint}</Text>}
       </Card>
 
@@ -115,7 +117,7 @@ export default function ExerciseScreen() {
           <Text style={ui.muted}>The most reps you did at each weight. Beat one and it counts as a PR.</Text>
           {repList.map(([kg, reps]) => (
             <View key={kg} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={ui.text}>{kg} kg</Text>
+              <Text style={ui.text}>{units.text(kg)}</Text>
               <Text style={{ color: Colors.text, fontWeight: '800' }}>
                 {reps} {reps === 1 ? 'rep' : 'reps'}
               </Text>
@@ -146,7 +148,7 @@ export default function ExerciseScreen() {
               {h.sets.map((x, i) => (
                 <View key={i} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: x.warmup ? Colors.cardRaised : Colors.limeSoft }}>
                   <Text style={{ color: x.warmup ? Colors.textMuted : Colors.text, fontWeight: '700', fontSize: 12 }}>
-                    {x.weight} × {x.reps}
+                    {units.set(x)}
                   </Text>
                 </View>
               ))}

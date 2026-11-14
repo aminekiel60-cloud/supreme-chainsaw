@@ -41,6 +41,7 @@ const initialState: AppState = {
     reviewStats: ['workouts', 'activeMinutes', 'volume', 'distance', 'lockedDays', 'prs'],
     startScreen: 'today',
     bigRing: 'calories',
+    units: 'kg',
   },
   goals: { ...DEFAULT_HABIT_GOALS, kcal: 2400, protein: 160, carbs: 260, fat: 75 },
   health: {},

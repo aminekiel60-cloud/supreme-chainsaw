@@ -12,7 +12,7 @@ export function prefillSets(state: AppState, name: string, count?: number): Exer
   const n = count ?? last?.sets.length ?? 3;
   return Array.from({ length: Math.max(1, n) }, (_, i) => {
     const prev = last?.sets[i] ?? last?.sets[last.sets.length - 1];
-    return { reps: prev?.reps ?? 0, weight: prev?.weight ?? 0, warmup: prev?.warmup, done: false };
+    return { reps: prev?.reps ?? 0, weight: prev?.weight ?? 0, seconds: prev?.seconds, meters: prev?.meters, warmup: prev?.warmup, done: false };
   });
 }
 

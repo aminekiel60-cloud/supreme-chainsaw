@@ -116,6 +116,15 @@ export default function ProfileScreen() {
       </Card>
 
       <Card style={{ gap: Spacing.md }}>
+        <SectionTitle>Units</SectionTitle>
+        <Text style={ui.muted}>Weights in workouts, records and body weight.</Text>
+        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+          <Chip label="Kilograms (kg)" active={settings.units !== 'lb'} onPress={() => dispatch({ type: 'setSettings', settings: { ...settings, units: 'kg' } })} />
+          <Chip label="Pounds (lbs)" active={settings.units === 'lb'} onPress={() => dispatch({ type: 'setSettings', settings: { ...settings, units: 'lb' } })} />
+        </View>
+      </Card>
+
+      <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Rest timer</SectionTitle>
         <Text style={ui.muted}>Starts when you tick off a set. Pick Off to never start it. You can also set it per exercise in a workout.</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>

@@ -11,9 +11,12 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 
 import { FormScroll } from '@/components/FormScroll';
 import { PlateCalc } from '@/components/PlateCalc';
+import { SlideToFinish } from '@/components/SlideToFinish';
+import { FIELD_LABEL, WorkoutKeypad, type KeypadField } from '@/components/WorkoutKeypad';
+import { secondsText, useUnits } from '@/lib/units';
 import { Button, Card, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
-import { libraryExercise } from '@/data/exercises';
+import { libraryExercise, trackMode, type TrackMode } from '@/data/exercises';
 import { program as findProgram } from '@/data/programs';
 import { haptics } from '@/lib/haptics';
 import { REST_OPTIONS, cancelRestNotification, formatDuration, restLabel, scheduleRestNotification, useNow } from '@/lib/workoutTimer';
@@ -23,6 +26,16 @@ import { useStore } from '@/store/store';
 import type { ActiveWorkout, Exercise, ExerciseSet, Workout } from '@/store/types';
 
 const num = (v: string) => Number(v.replace(',', '.')) || 0;
+
+/** The cells you fill in per set, for each way of logging. */
+const FIELDS: Record<TrackMode, KeypadField[]> = {
+  weight: ['weight', 'reps'],
+  bodyweight: ['weight', 'reps'],
+  time: ['seconds'],
+  distance: ['meters', 'weight'],
+};
+const hasValue = (x: ExerciseSet) => x.reps > 0 || (x.seconds ?? 0) > 0 || (x.meters ?? 0) > 0;
+type Editing = { ex: number; set: number; field: KeypadField };
 
 type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
 const setType = (set: ExerciseSet): SetType => (set.warmup ? 'warmup' : set.kind ?? 'normal');
@@ -52,6 +65,9 @@ export default function ActiveWorkoutScreen() {
   const aw = state.activeWorkout;
   const now = useNow();
   const [plates, setPlates] = useState<number | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [draft, setDraft] = useState('');
+  const units = useUnits();
   const restDone = useRef<string | null>(null);
   useKeepAwake();
 
@@ -140,7 +156,7 @@ export default function ActiveWorkoutScreen() {
   const addSet = (i: number) => {
     const sets = aw.exercises[i].sets;
     const last = sets[sets.length - 1];
-    updateExercise(i, { sets: [...sets, { reps: last?.reps ?? 0, weight: last?.weight ?? 0, done: false }] });
+    updateExercise(i, { sets: [...sets, { reps: last?.reps ?? 0, weight: last?.weight ?? 0, seconds: last?.seconds, meters: last?.meters, done: false }] });
   };
 
   const removeSet = (i: number, j: number) => {
@@ -167,14 +183,75 @@ export default function ActiveWorkoutScreen() {
     setExercises(list);
   };
 
+  // ---- number pad ----
+  const modeOf = (i: number) => trackMode(aw.exercises[i]?.name ?? '', state.customExercises);
+  /** What a cell shows now, in your units. */
+  const cellValue = (e: Editing) => {
+    const set = aw.exercises[e.ex]?.sets[e.set];
+    if (!set) return 0;
+    if (e.field === 'weight') return units.show(set.weight);
+    return set[e.field] ?? 0;
+  };
+  const commitDraft = () => {
+    if (!editing || draft === '') return;
+    const v = num(draft);
+    const value = editing.field === 'weight' ? units.toKg(v) : Math.round(v);
+    updateSet(editing.ex, editing.set, { [editing.field]: value });
+    setDraft('');
+  };
+  const openCell = (e: Editing) => {
+    commitDraft();
+    setEditing(e);
+    setDraft('');
+  };
+  const nextCell = () => {
+    if (!editing) return;
+    commitDraft();
+    const fields = FIELDS[modeOf(editing.ex)];
+    const f = fields.indexOf(editing.field);
+    if (f < fields.length - 1) return setEditing({ ...editing, field: fields[f + 1] });
+    if (editing.set < aw.exercises[editing.ex].sets.length - 1) return setEditing({ ex: editing.ex, set: editing.set + 1, field: fields[0] });
+    if (editing.ex < aw.exercises.length - 1) return setEditing({ ex: editing.ex + 1, set: 0, field: FIELDS[modeOf(editing.ex + 1)][0] });
+    setEditing(null);
+  };
+  const keyPress = (k: string) => {
+    if (k === 'del') return setDraft((d) => d.slice(0, -1));
+    if (k === '.' && draft.includes('.')) return;
+    if (draft.replace('.', '').length >= 5) return;
+    setDraft((d) => (k === '.' && !d ? '0.' : d + k));
+  };
+  const stepBy = (delta: number) => {
+    if (!editing) return;
+    const base = draft !== '' ? num(draft) : cellValue(editing);
+    const v = Math.max(0, Math.round((base + delta) * 100) / 100);
+    setDraft(String(v));
+  };
+  const stepFor = (field: KeypadField) => (field === 'weight' ? units.step : field === 'seconds' ? 5 : field === 'meters' ? 5 : 1);
+
+  /** Add ramp-up sets before the first work set: about 40, 60 and 80 percent, rounded to what you can load. */
+  const addWarmups = (i: number) => {
+    const ex = aw.exercises[i];
+    const work = ex.sets.find((x) => !x.warmup && x.weight > 0)?.weight ?? exerciseHistory(state, ex.name)[0]?.sets.find((x) => !x.warmup)?.weight ?? 0;
+    if (work < 20) {
+      Alert.alert('Add a work weight first', 'Fill in the weight of your first work set, then add warm-up sets.');
+      return;
+    }
+    const round = (kg: number) => Math.max(units.unit === 'lb' ? units.toKg(45) : 20, Math.round(kg / 2.5) * 2.5);
+    const plan = work >= 60 ? [[0.4, 10], [0.6, 5], [0.8, 3]] : [[0.5, 10], [0.75, 5]];
+    const warm = plan.map(([pct, reps]) => ({ weight: round(work * pct), reps, warmup: true, done: false }));
+    updateExercise(i, { sets: [...warm, ...ex.sets.filter((x) => !x.warmup)] });
+    haptics.add();
+  };
+
   const finish = () => {
     // If you ticked sets off, only the ticked ones count. If you never used the ticks, every filled-in set counts.
+    commitDraft();
     const usedTicks = aw.exercises.some((e) => e.sets.some((x) => x.done));
     const exercises = aw.exercises
-      .map((e) => ({ ...e, sets: e.sets.filter((x) => x.reps > 0 && (!usedTicks || x.done)).map(({ done: _done, ...x }) => x) }))
+      .map((e) => ({ ...e, sets: e.sets.filter((x) => hasValue(x) && (!usedTicks || x.done)).map(({ done: _done, ...x }) => x) }))
       .filter((e) => e.sets.length > 0);
     if (exercises.length === 0) {
-      Alert.alert('Nothing logged yet', 'Fill in reps for at least one set, or discard the workout.');
+      Alert.alert('Nothing logged yet', 'Fill in at least one set, or discard the workout.');
       return;
     }
     const workout: Workout = {
@@ -235,11 +312,7 @@ export default function ActiveWorkoutScreen() {
             </Pressable>
           ),
           headerTitle: () => <Text style={[Type.heading, { color: Colors.lime, fontVariant: ['tabular-nums'] }]}>{formatDuration(elapsed)}</Text>,
-          headerRight: () => (
-            <Pressable onPress={finish} style={s.finish} accessibilityLabel="Finish workout">
-              <Text style={{ color: Colors.background, fontWeight: '900' }}>Finish</Text>
-            </Pressable>
-          ),
+          headerRight: () => <View style={{ width: 26 }} />,
         }}
       />
 
@@ -262,7 +335,7 @@ export default function ActiveWorkoutScreen() {
         </View>
       )}
 
-      <FormScroll>
+      <FormScroll contentContainerStyle={{ paddingBottom: editing ? 380 : 140 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
           <TextInput
             style={[Type.title, { color: Colors.text, flex: 1, padding: 0 }]}
@@ -272,7 +345,7 @@ export default function ActiveWorkoutScreen() {
             placeholderTextColor={Colors.textFaint}
           />
           <Text style={ui.muted}>
-            {doneSets} sets, {volume.toLocaleString('en-US')} kg
+            {doneSets} sets, {units.show(volume).toLocaleString('en-US')} {units.unit}
           </Text>
         </View>
 
@@ -296,6 +369,11 @@ export default function ActiveWorkoutScreen() {
             onPlates={(w) => setPlates(w)}
             onRest={(seconds) => updateExercise(i, { restSeconds: seconds })}
             defaultRest={state.settings.restSeconds}
+            mode={modeOf(i)}
+            editing={editing?.ex === i ? editing : null}
+            draft={draft}
+            onOpenCell={(set, field) => openCell({ ex: i, set, field })}
+            onWarmup={() => addWarmups(i)}
           />
         ))}
 
@@ -304,6 +382,26 @@ export default function ActiveWorkoutScreen() {
           <Text style={{ color: Colors.danger, textAlign: 'center', fontWeight: '600' }}>Discard workout</Text>
         </Pressable>
       </FormScroll>
+
+      {editing ? (
+        <WorkoutKeypad
+          label={`${aw.exercises[editing.ex]?.name ?? ''}, set ${editing.set + 1}: ${editing.field === 'weight' ? (modeOf(editing.ex) === 'bodyweight' ? `extra ${units.unit}` : units.unit) : FIELD_LABEL[editing.field].toLowerCase()}`}
+          draft={draft}
+          step={stepFor(editing.field)}
+          decimals={editing.field === 'weight'}
+          onKey={keyPress}
+          onStep={stepBy}
+          onNext={nextCell}
+          onDone={() => {
+            commitDraft();
+            setEditing(null);
+          }}
+        />
+      ) : (
+        <View style={s.bottom}>
+          <SlideToFinish onFinish={finish} />
+        </View>
+      )}
 
       {plates !== null && <PlateCalc weight={plates} onClose={() => setPlates(null)} />}
     </View>
@@ -328,6 +426,11 @@ function ExerciseCard({
   onPlates,
   onRest,
   defaultRest,
+  mode,
+  editing,
+  draft,
+  onOpenCell,
+  onWarmup,
 }: {
   exercise: Exercise;
   index: number;
@@ -346,7 +449,13 @@ function ExerciseCard({
   onPlates: (weight: number) => void;
   onRest: (seconds: number) => void;
   defaultRest: number;
+  mode: TrackMode;
+  editing: Editing | null;
+  draft: string;
+  onOpenCell: (set: number, field: KeypadField) => void;
+  onWarmup: () => void;
 }) {
+  const units = useUnits();
   const { state } = useStore();
   const last = exerciseHistory(state, exercise.name)[0];
   const records = exerciseRecords(state, exercise.name);
@@ -357,6 +466,7 @@ function ExerciseCard({
   const menu = () =>
     Alert.alert(exercise.name, undefined, [
       { text: note ? 'Edit note' : 'Add a note', onPress: () => setEditingNote(true) },
+      mode === 'weight' ? { text: 'Add warm-up sets', onPress: onWarmup } : null,
       index < total - 1 ? { text: linkedNext ? 'Unlink superset' : 'Superset with next exercise', onPress: onSuperset } : null,
       index > 0 ? { text: 'Move up', onPress: () => onMove(-1) } : null,
       index < total - 1 ? { text: 'Move down', onPress: () => onMove(1) } : null,
@@ -364,7 +474,7 @@ function ExerciseCard({
       { text: 'Remove exercise', style: 'destructive' as const, onPress: onRemove },
       { text: 'Cancel', style: 'cancel' as const },
     ].filter((x): x is NonNullable<typeof x> => x !== null));
-  const isBar = libraryExercise(exercise.name)?.bar;
+  const isBar = mode === 'weight' && libraryExercise(exercise.name)?.bar;
   const newPr = exercise.sets.some((x) => x.done && setRecord(state, exercise.name, x));
   const rest = exercise.restSeconds ?? defaultRest;
 
@@ -374,7 +484,13 @@ function ExerciseCard({
         <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/exercise/[name]', params: { name: exercise.name } })}>
           <Text style={[ui.text, { fontWeight: '800', fontSize: 16 }]}>{exercise.name}</Text>
           <Text style={ui.muted}>
-            {records.bestWeight ? `Best ${records.bestWeight.weight} kg × ${records.bestWeight.reps}` : 'First time. Set your PR today.'}
+            {records.bestWeight
+              ? `Best ${units.text(records.bestWeight.weight)} × ${records.bestWeight.reps}`
+              : mode === 'time'
+                ? 'Timed sets: fill in seconds.'
+                : mode === 'distance'
+                  ? 'Distance sets: metres, and kg if you carry weight.'
+                  : 'First time. Set your PR today.'}
           </Text>
         </Pressable>
         {newPr && (
@@ -431,8 +547,11 @@ function ExerciseCard({
       <View style={s.headRow}>
         <Text style={[s.col, s.colSet, ui.statLabel]}>SET</Text>
         <Text style={[s.col, s.colPrev, ui.statLabel]}>LAST</Text>
-        <Text style={[s.col, s.colNum, ui.statLabel]}>KG</Text>
-        <Text style={[s.col, s.colNum, ui.statLabel]}>REPS</Text>
+        {FIELDS[mode].map((f) => (
+          <Text key={f} style={[s.col, s.colNum, ui.statLabel]}>
+            {f === 'weight' ? (mode === 'bodyweight' ? `+${units.unit.toUpperCase()}` : units.unit.toUpperCase()) : f === 'seconds' ? 'TIME' : f === 'meters' ? 'METRES' : 'REPS'}
+          </Text>
+        ))}
         <View style={s.colCheck} />
         <View style={s.colX} />
       </View>
@@ -443,6 +562,10 @@ function ExerciseCard({
           index={j}
           set={set}
           previous={last?.sets[j]}
+          mode={mode}
+          editingField={editing?.set === j ? editing.field : null}
+          draft={draft}
+          onOpen={(field) => onOpenCell(j, field)}
           onChange={(changes) => onSet(j, changes)}
           onToggle={(fill) => onToggle(j, fill)}
           onRemove={() => onRemoveSet(j)}
@@ -482,6 +605,10 @@ function SetRow({
   index,
   set,
   previous,
+  mode,
+  editingField,
+  draft,
+  onOpen,
   onChange,
   onToggle,
   onRemove,
@@ -489,20 +616,24 @@ function SetRow({
   index: number;
   set: ExerciseSet;
   previous?: ExerciseSet;
+  mode: TrackMode;
+  editingField: KeypadField | null;
+  draft: string;
+  onOpen: (field: KeypadField) => void;
   onChange: (changes: Partial<ExerciseSet>) => void;
   onToggle: (fill?: Partial<ExerciseSet>) => void;
   onRemove: () => void;
 }) {
-  // Local text so "7." and "" don't fight with the number in the store.
-  const [weight, setWeight] = useState(set.weight ? String(set.weight) : '');
-  const [reps, setReps] = useState(set.reps ? String(set.reps) : '');
-
-  // A set above this one was deleted, or values were filled in from elsewhere:
-  // show what the store holds now instead of this row's old text.
-  useEffect(() => {
-    setWeight((text) => (num(text) === set.weight ? text : set.weight ? String(set.weight) : ''));
-    setReps((text) => (Math.round(num(text)) === set.reps ? text : set.reps ? String(set.reps) : ''));
-  }, [set.weight, set.reps]);
+  const units = useUnits();
+  const show = (field: KeypadField, x: ExerciseSet | undefined) => {
+    if (!x) return '';
+    if (field === 'weight') return x.weight ? String(units.show(x.weight)) : mode === 'bodyweight' ? '0' : '';
+    if (field === 'seconds') return x.seconds ? secondsText(x.seconds) : '';
+    if (field === 'meters') return x.meters ? String(x.meters) : '';
+    return x.reps ? String(x.reps) : '';
+  };
+  const label = { weight: mode === 'bodyweight' ? 'Extra weight' : `Weight in ${units.unit}`, reps: 'Reps', seconds: 'Seconds', meters: 'Metres' };
+  const filled = (x: ExerciseSet) => (mode === 'time' ? (x.seconds ?? 0) > 0 : mode === 'distance' ? (x.meters ?? 0) > 0 : x.reps > 0);
 
   return (
     <View style={[s.setRow, set.done && s.setRowDone]}>
@@ -515,39 +646,32 @@ function SetRow({
         {set.rpe ? <Text style={s.rpe}>@{set.rpe}</Text> : null}
       </Pressable>
       <Text style={[s.col, s.colPrev, ui.muted]} numberOfLines={1}>
-        {previous ? `${previous.weight}×${previous.reps}` : ''}
+        {previous ? units.set(previous) : ''}
       </Text>
-      <TextInput
-        style={[s.col, s.colNum, s.input, set.done && s.inputDone]}
-        keyboardType="decimal-pad"
-        accessibilityLabel="Weight in kg"
-        placeholder={previous ? String(previous.weight) : '0'}
-        placeholderTextColor={Colors.textFaint}
-        value={weight}
-        onChangeText={(t) => {
-          setWeight(t);
-          onChange({ weight: num(t) });
-        }}
-        selectTextOnFocus
-      />
-      <TextInput
-        style={[s.col, s.colNum, s.input, set.done && s.inputDone]}
-        keyboardType="numeric"
-        accessibilityLabel="Reps"
-        placeholder={previous ? String(previous.reps) : '0'}
-        placeholderTextColor={Colors.textFaint}
-        value={reps}
-        onChangeText={(t) => {
-          setReps(t);
-          onChange({ reps: Math.round(num(t)) });
-        }}
-        selectTextOnFocus
-      />
+      {FIELDS[mode].map((field) => {
+        const active = editingField === field;
+        const value = active && draft !== '' ? draft : show(field, set);
+        const placeholder = show(field, previous) || '';
+        return (
+          <Pressable
+            key={field}
+            onPress={() => onOpen(field)}
+            style={[s.colNum, s.input, s.cell, set.done && s.inputDone, active && s.inputActive]}
+            accessibilityRole="button"
+            accessibilityLabel={label[field]}
+            accessibilityValue={{ text: value || placeholder || 'empty' }}>
+            <Text style={[s.cellText, !value && { color: Colors.textFaint }]} numberOfLines={1}>
+              {value || placeholder || '-'}
+            </Text>
+          </Pressable>
+        );
+      })}
       <Pressable
         onPress={() => {
           // Ticking an empty set uses the placeholder (last time's) values.
-          if (!set.done && set.reps === 0 && previous) onToggle({ reps: previous.reps, weight: set.weight || previous.weight });
-          else onToggle();
+          if (!set.done && !filled(set) && previous) {
+            onToggle({ reps: previous.reps, weight: set.weight || previous.weight, seconds: previous.seconds, meters: previous.meters });
+          } else onToggle();
         }}
         style={[s.colCheck, s.check, set.done && s.checkDone]}
         accessibilityLabel={set.done ? 'Set done' : 'Complete set'}
@@ -582,6 +706,10 @@ const s = StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 },
   setRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 2, borderRadius: Radius.sm },
   setRowDone: { backgroundColor: '#1C2612' },
+  inputActive: { borderColor: Colors.lime, borderWidth: 2 },
+  cell: { alignItems: 'center', justifyContent: 'center', minHeight: 40 },
+  cellText: { color: Colors.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  bottom: { padding: Spacing.lg, paddingBottom: Spacing.xl, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.border },
   col: { textAlign: 'center' },
   colSet: { width: 30, alignItems: 'center' },
   colPrev: { width: 64, fontSize: 12 },

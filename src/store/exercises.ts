@@ -2,7 +2,7 @@
  * Everything about exercises: history, personal records, progress hints,
  * muscles trained this week and the plate calculator.
  */
-import { EXERCISE_LIBRARY, libraryExercise } from '@/data/exercises';
+import { ALIASES, EXERCISE_LIBRARY, libraryExercise } from '@/data/exercises';
 import { startOfWeek, todayKey } from './dates';
 import type { AppState, Exercise, ExerciseSet, MuscleGroup, PersonalRecord, Workout } from './types';
 
@@ -168,9 +168,9 @@ export function muscleOf(state: AppState, name: string): MuscleGroup | undefined
 
 /** Library + your own exercises, with how often and how recently you did each. */
 export function allExercises(state: AppState) {
-  const seen = new Map<string, { name: string; muscle: MuscleGroup; lastDate?: string; times: number }>();
-  for (const e of EXERCISE_LIBRARY) seen.set(key(e.name), { name: e.name, muscle: e.muscle, times: 0 });
-  for (const e of state.customExercises) seen.set(key(e.name), { name: e.name, muscle: e.muscle, times: 0 });
+  const seen = new Map<string, { name: string; muscle: MuscleGroup; lastDate?: string; times: number; core?: boolean }>();
+  for (const e of EXERCISE_LIBRARY) seen.set(key(e.name), { name: e.name, muscle: e.muscle, times: 0, core: e.core });
+  for (const e of state.customExercises) seen.set(key(e.name), { name: e.name, muscle: e.muscle, times: 0, core: true });
   for (const w of state.workouts) {
     for (const ex of w.exercises ?? []) {
       const k = key(ex.name);
@@ -242,4 +242,22 @@ export function renameExercise(state: AppState, from: string, to: string): Parti
       ? { ...state.activeWorkout, exercises: state.activeWorkout.exercises.map((e) => ({ ...e, name: rename(e.name) })) }
       : null,
   };
+}
+
+const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Does an exercise name match what you typed? Ignores spaces, dashes and word order; knows gym slang (rdl, ohp). */
+export function matchesSearch(name: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const alias = ALIASES[q];
+  if (alias && key(alias) === key(name)) return true;
+  if (squash(name).includes(squash(q))) return true;
+  const words = q
+    .replace(/\bdb\b/g, 'dumbbell')
+    .replace(/\bbb\b/g, 'barbell')
+    .split(/\s+/)
+    .filter(Boolean);
+  const n = name.toLowerCase();
+  return words.length > 1 && words.every((w) => n.includes(w.replace(/s$/, '')));
 }

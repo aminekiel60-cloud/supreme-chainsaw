@@ -13,6 +13,7 @@ import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui'
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { keepPhoto, pickPhoto } from '@/lib/photos';
 import { cloudEnabled } from '@/lib/supabase';
+import { useUnits } from '@/lib/units';
 import { prettyDate } from '@/store/dates';
 import { describeRecord } from '@/store/exercises';
 import { formatDistance, pace, sport } from '@/store/logic';
@@ -22,6 +23,7 @@ export default function WorkoutScreen() {
   const { id, fresh } = useLocalSearchParams<{ id: string; fresh?: string }>();
   const [routineName, setRoutineName] = useState<string | null>(null);
   const { state, dispatch } = useStore();
+  const units = useUnits();
   const workout = state.workouts.find((w) => w.id === id);
   const [style, setStyle] = useState<ShareStyle>('sticker');
   const [sharing, setSharing] = useState(false);
@@ -144,7 +146,7 @@ export default function WorkoutScreen() {
         <Big label="Time" value={`${workout.durationMin}`} unit="min" />
         {workout.distanceKm ? <Big label="Distance" value={formatDistance(workout).split(' ')[0]} unit={formatDistance(workout).split(' ')[1]} /> : null}
         {p ? <Big label={workout.type === 'cycle' ? 'Speed' : 'Pace'} value={p.split(' ')[0]} unit={p.split(' ')[1]} /> : null}
-        {sets ? <Big label="Sets" value={String(sets)} unit={volume ? `${volume.toLocaleString('en-US')} kg` : 'sets'} /> : null}
+        {sets ? <Big label="Sets" value={String(sets)} unit={volume ? `${units.show(volume).toLocaleString('en-US')} ${units.unit}` : 'sets'} /> : null}
       </View>
 
       {workout.route && workout.route.length > 1 ? <RouteMap route={workout.route} /> : null}
@@ -192,7 +194,7 @@ export default function WorkoutScreen() {
           {workout.exercises.map((e, i) => (
             <Pressable key={i} onPress={() => router.push({ pathname: '/exercise/[name]', params: { name: e.name } })} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
               <Text style={[ui.text, { fontWeight: '700', flex: 1 }]}>{e.name}</Text>
-              <Text style={ui.muted}>{e.sets.map((x) => `${x.weight}×${x.reps}`).join('  ')}</Text>
+              <Text style={ui.muted}>{e.sets.map((x) => units.set(x)).join('  ')}</Text>
             </Pressable>
           ))}
         </Card>

@@ -4,6 +4,10 @@
  * which is public domain. The photos are stored in the public "exercise-images"
  * bucket of this app's Supabase project. Generated file; edit the steps here if needed.
  */
+import { useEffect, useState } from 'react';
+
+import { EXTRA_EXERCISES } from './exerciseLibraryExtra';
+
 const BASE = process.env.EXPO_PUBLIC_SUPABASE_URL ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/exercise-images` : null;
 
 type Guide = { slug: string; images: number; steps: string[] };
@@ -758,11 +762,54 @@ const GUIDES: Record<string, Guide> = {
   }
 };
 
-/** Photos (start and end position) and steps for an exercise, if we have them. */
+const extraNames = new Set(EXTRA_EXERCISES.map(([n]) => n));
+const extraSlug = (name: string) => 'x-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+/**
+ * Photos (start and end position) and steps for an exercise, if we have them.
+ * For the 683 extra exercises the steps arrive later (see useExerciseGuide).
+ */
 export function exerciseGuide(name: string): { photos: string[]; steps: string[] } | null {
   const g = GUIDES[name];
-  if (!g) return null;
-  const photos = BASE ? Array.from({ length: g.images }, (_, i) => `${BASE}/${g.slug}/${i}.jpg`) : [];
-  return { photos, steps: g.steps };
+  if (g) {
+    const photos = BASE ? Array.from({ length: g.images }, (_, i) => `${BASE}/${g.slug}/${i}.jpg`) : [];
+    return { photos, steps: g.steps };
+  }
+  if (extraNames.has(name)) {
+    const slug = extraSlug(name);
+    return { photos: BASE ? [`${BASE}/${slug}/0.jpg`, `${BASE}/${slug}/1.jpg`] : [], steps: [] };
+  }
+  return null;
+}
+
+// Steps for the extra exercises: one file, downloaded once when first needed.
+type StepsFile = Record<string, { steps: string[] }>;
+let stepsFile: Promise<StepsFile> | null = null;
+function loadSteps(): Promise<StepsFile> {
+  if (!BASE) return Promise.resolve({});
+  stepsFile ??= fetch(`${BASE}/guides.json`)
+    .then((r) => (r.ok ? (r.json() as Promise<StepsFile>) : {}))
+    .catch((): StepsFile => {
+      stepsFile = null;
+      return {};
+    });
+  return stepsFile;
+}
+
+/** exerciseGuide plus the steps of extra exercises once they have loaded. */
+export function useExerciseGuide(name: string) {
+  const base = exerciseGuide(name);
+  const [steps, setSteps] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!base || base.steps.length) return;
+    let alive = true;
+    loadSteps().then((all) => alive && setSteps(all[extraSlug(name)]?.steps ?? []));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name]);
+  if (!base) return null;
+  return { photos: base.photos, steps: base.steps.length ? base.steps : steps ?? [] };
 }
 

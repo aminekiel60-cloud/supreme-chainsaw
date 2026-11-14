@@ -8,6 +8,8 @@ import { Asset, requestPermissionsAsync } from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import type { ComponentRef, RefObject } from 'react';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
+
+import { fromKg, useUnits, type Unit } from '@/lib/units';
 import { captureRef } from 'react-native-view-shot';
 
 import { Colors } from '@/constants/theme';
@@ -17,7 +19,7 @@ import { LogoMark } from './Logo';
 
 export type ShareStyle = 'sticker' | 'photo';
 
-function statsFor(w: Workout) {
+function statsFor(w: Workout, unit: Unit) {
   const stats: { label: string; value: string }[] = [];
   if (w.distanceKm) stats.push({ label: 'Distance', value: formatDistance(w) });
   const p = pace(w);
@@ -27,7 +29,7 @@ function statsFor(w: Workout) {
   if (w.exercises?.length) {
     const volume = w.exercises.reduce((t, e) => t + e.sets.reduce((s, x) => s + x.reps * x.weight, 0), 0);
     stats.push({ label: 'Sets', value: String(w.exercises.reduce((t, e) => t + e.sets.length, 0)) });
-    if (volume) stats.push({ label: 'Volume', value: `${volume.toLocaleString('en-US')} kg` });
+    if (volume) stats.push({ label: 'Volume', value: `${fromKg(volume, unit).toLocaleString('en-US')} ${unit}` });
   }
   return stats.slice(0, 3);
 }
@@ -44,6 +46,7 @@ export function ShareCard({
   photoUri?: string;
   cardRef: RefObject<ComponentRef<typeof View> | null>;
 }) {
+  const units = useUnits();
   const info = sport(workout.type);
   const content = (
     <View style={s.content}>
@@ -54,7 +57,7 @@ export function ShareCard({
       <Text style={s.title} numberOfLines={2}>
         {workout.title}
       </Text>
-      {statsFor(workout).map((st) => (
+      {statsFor(workout, units.unit).map((st) => (
         <View key={st.label} style={{ alignItems: 'center' }}>
           <Text style={s.label}>{st.label}</Text>
           <Text style={s.value}>{st.value}</Text>

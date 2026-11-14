@@ -32,6 +32,10 @@ export type ExerciseSet = {
   kind?: 'drop' | 'failure';
   /** How hard it felt, 6 (easy) to 10 (nothing left) */
   rpe?: number;
+  /** Timed sets (plank, dead hang): seconds */
+  seconds?: number;
+  /** Distance sets (farmer's walk, sled): metres */
+  meters?: number;
 };
 
 export type Exercise = {
@@ -98,7 +102,7 @@ export type MuscleGroup =
   | 'cardio'
   | 'full body';
 
-export type CustomExercise = { name: string; muscle: MuscleGroup };
+export type CustomExercise = { name: string; muscle: MuscleGroup; track?: 'weight' | 'bodyweight' | 'time' | 'distance' };
 
 export type BodyWeightEntry = { date: DateKey; kg: number };
 
@@ -258,6 +262,8 @@ export type Settings = {
   startScreen: 'today' | 'food' | 'coach' | 'feed';
   /** What the big ring on Today shows */
   bigRing: 'calories' | 'habits';
+  /** Weights shown in kg or lbs (always stored in kg) */
+  units: 'kg' | 'lb';
 };
 
 export type AppState = {

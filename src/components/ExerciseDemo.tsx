@@ -6,11 +6,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Colors, Spacing, Type } from '@/constants/theme';
-import { exerciseGuide } from '@/data/exerciseGuide';
+import { useExerciseGuide } from '@/data/exerciseGuide';
 import { Card, styles as ui } from './ui';
 
 export function ExerciseDemo({ name }: { name: string }) {
-  const guide = exerciseGuide(name);
+  const guide = useExerciseGuide(name);
   const [showSteps, setShowSteps] = useState(false);
   const end = useSharedValue(0);
 
@@ -44,6 +44,7 @@ export function ExerciseDemo({ name }: { name: string }) {
           <Text style={[Type.heading, { color: Colors.text, flex: 1 }]}>How to do it</Text>
           <Ionicons name={showSteps ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.textMuted} />
         </Pressable>
+        {showSteps && guide.steps.length === 0 && <Text style={ui.muted}>Loading the steps.</Text>}
         {showSteps &&
           guide.steps.map((step, i) => (
             <View key={i} style={{ flexDirection: 'row', gap: 10 }}>
