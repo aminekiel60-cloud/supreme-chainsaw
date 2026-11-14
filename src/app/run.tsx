@@ -1,20 +1,21 @@
 /**
  * RUN TRACKER: GPS route, distance, time, pace and splits per km, for runs,
- * walks and rides. The screen stays on while tracking: Android pauses GPS
- * updates for apps in the background.
+ * walks and rides. Keeps tracking with the screen off (see lib/runTracker).
+ * Only where that isn't possible does the screen stay on instead.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { metersBetween, RouteMap } from '@/components/RouteMap';
 import { Chip, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
+import { startRunTracking, stopRunTracking } from '@/lib/runTracker';
 import { formatDuration, useNow } from '@/lib/workoutTimer';
 import { todayKey } from '@/store/dates';
 import { newId } from '@/store/logic';
@@ -34,7 +35,6 @@ const paceText = (secondsPerKm: number) =>
   !isFinite(secondsPerKm) || secondsPerKm <= 0 || secondsPerKm > 3600 ? '--:--' : `${Math.floor(secondsPerKm / 60)}:${String(Math.round(secondsPerKm % 60)).padStart(2, '0')}`;
 
 export default function RunScreen() {
-  useKeepAwake();
   const { dispatch } = useStore();
   const now = useNow(1000);
   const [sport, setSport] = useState<Sport>('run');
@@ -46,7 +46,7 @@ export default function RunScreen() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [pausedMs, setPausedMs] = useState(0);
   const pausedSince = useRef<number | null>(null);
-  const sub = useRef<Location.LocationSubscription | null>(null);
+  const [screenOff, setScreenOff] = useState(true);
   const last = useRef<{ point: [number, number]; time: number } | null>(null);
   const recent = useRef<{ meters: number; time: number }[]>([]);
   const phaseRef = useRef<Phase>('ready');
@@ -54,7 +54,13 @@ export default function RunScreen() {
   const metersRef = useRef(0);
   const splitStart = useRef(0);
 
-  useEffect(() => () => sub.current?.remove(), []);
+  useEffect(
+    () => () => {
+      stopRunTracking();
+      deactivateKeepAwake('run');
+    },
+    [],
+  );
 
   const elapsedMs = startedAt ? (phase === 'paused' && pausedSince.current ? pausedSince.current : now) - startedAt - pausedMs : 0;
   const seconds = Math.max(0, Math.floor(elapsedMs / 1000));
@@ -116,11 +122,10 @@ export default function RunScreen() {
     haptics.success();
     setStartedAt(Date.now());
     setPhase('tracking');
-    sub.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 2000, distanceInterval: 3 },
-      onLocation,
-      () => setGps(null),
-    );
+    const background = await startRunTracking(onLocation, () => setGps(null));
+    setScreenOff(background);
+    // Without background tracking, keep the screen on so GPS doesn't pause.
+    if (!background) activateKeepAwakeAsync('run').catch(() => {});
   };
 
   const pause = () => {
@@ -138,8 +143,8 @@ export default function RunScreen() {
   };
 
   const stop = () => {
-    sub.current?.remove();
-    sub.current = null;
+    stopRunTracking();
+    deactivateKeepAwake('run');
   };
 
   const save = () => {
@@ -220,7 +225,9 @@ export default function RunScreen() {
               <Chip key={sp.id} label={sp.label} active={sport === sp.id} onPress={() => setSport(sp.id)} />
             ))}
           </View>
-          <Text style={[ui.muted, { textAlign: 'center' }]}>Keep the app open: the screen stays on while you track. Put your phone in your pocket or an armband.</Text>
+          <Text style={[ui.muted, { textAlign: 'center' }]}>
+            {Platform.OS === 'web' ? 'Keep this page open while you track.' : 'You can lock your phone and put it in your pocket. A notification shows while the run is tracked.'}
+          </Text>
         </View>
       ) : (
         <View style={{ flex: 1, paddingHorizontal: Spacing.lg, gap: Spacing.lg }}>
@@ -245,6 +252,7 @@ export default function RunScreen() {
             </View>
           )}
           {phase === 'paused' && <Text style={[ui.muted, { textAlign: 'center' }]}>Paused. Time and distance are on hold.</Text>}
+          {!screenOff && phase === 'tracking' && <Text style={[ui.muted, { textAlign: 'center' }]}>Keep the screen on: tracking pauses when the app is closed.</Text>}
         </View>
       )}
 

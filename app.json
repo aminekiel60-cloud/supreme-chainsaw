@@ -110,7 +110,8 @@
         {
           "locationWhenInUsePermission": "Locked in uses your location while you track a run, walk or ride, to draw your route and measure distance and pace.",
           "isAndroidBackgroundLocationEnabled": false,
-          "isAndroidForegroundServiceEnabled": false
+          "isAndroidForegroundServiceEnabled": true,
+          "androidForegroundServiceIcon": "./assets/images/notification-icon.png"
         }
       ]
     ],

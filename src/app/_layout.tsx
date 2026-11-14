@@ -17,6 +17,8 @@ import { useNotificationLinks, useStreakReminders } from '@/lib/reminders';
 import { setTrainingNow } from '@/lib/social';
 import { cloudEnabled } from '@/lib/supabase';
 import { StoreProvider, useStore } from '@/store/store';
+// Defines the background GPS task for the run tracker; must load at startup.
+import '@/lib/runTracker';
 
 // Keep the splash screen up until saved data has loaded.
 SplashScreen.preventAutoHideAsync().catch(() => {});

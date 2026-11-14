@@ -65,6 +65,7 @@ export type ChallengeMetric = 'run_km' | 'workouts' | 'locked_in_days' | 'protei
 export type Challenge = {
   id: string;
   creator: string;
+  club_id: string | null;
   visibility: Visibility;
   title: string;
   metric: ChallengeMetric;
@@ -147,33 +148,37 @@ export type FeedScope = 'following' | 'for_you';
  * have as `before` to load older posts.
  */
 export async function getFeed(scope: FeedScope = 'following', before?: string): Promise<Post[]> {
-  const me = await myId();
   const { data, error } = await db().rpc('get_feed_v2', { p_scope: scope, p_limit: 25, p_before: before ?? null });
   if (error) throw error;
-  type Row = {
-    id: string;
-    user_id: string;
-    kind: PostKind;
-    title: string;
-    caption: string | null;
-    stats: Post['stats'] | null;
-    created_at: string;
-    workout_type: WorkoutType | null;
-    photo_path: string | null;
-    visibility: Visibility;
-    tagged: string[] | null;
-    tagged_names: string[] | null;
-    author_name: string | null;
-    author_avatar: string | null;
-    author_level: number | null;
-    author_training: boolean;
-    is_friend: boolean;
-    likes: number;
-    liked_by_me: boolean;
-    comments: number;
-    latest_comment: { name: string; body: string } | null;
-  };
-  const rows = (data ?? []) as Row[];
+  return toPosts((data ?? []) as FeedRow[]);
+}
+
+type FeedRow = {
+  id: string;
+  user_id: string;
+  kind: PostKind;
+  title: string;
+  caption: string | null;
+  stats: Post['stats'] | null;
+  created_at: string;
+  workout_type: WorkoutType | null;
+  photo_path: string | null;
+  visibility: Visibility;
+  tagged: string[] | null;
+  tagged_names: string[] | null;
+  author_name: string | null;
+  author_avatar: string | null;
+  author_level: number | null;
+  author_training: boolean;
+  is_friend: boolean;
+  likes: number;
+  liked_by_me: boolean;
+  comments: number;
+  latest_comment: { name: string; body: string } | null;
+};
+
+async function toPosts(rows: FeedRow[]): Promise<Post[]> {
+  const me = await myId();
   const photoUrls = await workoutPhotoUrls(rows.map((p) => p.photo_path).filter((x): x is string => Boolean(x)));
   return rows.map((p) => ({
     id: p.id,
@@ -460,12 +465,14 @@ export function myProgress(state: AppState, c: Pick<Challenge, 'metric' | 'start
   }
 }
 
-export async function listChallenges(): Promise<Challenge[]> {
-  const { data, error } = await db()
+/** Challenges you can see. Pass a club id for that club's challenges only; without it, club challenges are left out. */
+export async function listChallenges(clubId?: string): Promise<Challenge[]> {
+  const query = db()
     .from('challenges')
     .select('*, challenge_members(user_id, progress, profiles(display_name, avatar_url))')
     .gte('end_date', addDays(todayKey(), -7))
     .order('end_date');
+  const { data, error } = await (clubId ? query.eq('club_id', clubId) : query.is('club_id', null));
   if (error) throw error;
   const me = await myId();
   return (data as any[]).map((c) => ({
@@ -482,12 +489,12 @@ export async function listChallenges(): Promise<Challenge[]> {
 }
 
 /** Start a 30-day challenge and join it yourself. Friends (or everyone, when public) can join. */
-export async function createChallenge(preset: (typeof CHALLENGE_PRESETS)[number], visibility: Visibility = 'friends') {
+export async function createChallenge(preset: (typeof CHALLENGE_PRESETS)[number], visibility: Visibility = 'friends', clubId?: string) {
   const me = await myId();
   const start = todayKey();
   const { data, error } = await db()
     .from('challenges')
-    .insert({ creator: me, title: preset.title, metric: preset.metric, target: preset.target, start_date: start, end_date: addDays(start, 29), visibility })
+    .insert({ creator: me, title: preset.title, metric: preset.metric, target: preset.target, start_date: start, end_date: addDays(start, 29), visibility, club_id: clubId ?? null })
     .select('id')
     .single();
   if (error) throw error;
@@ -596,3 +603,151 @@ export async function getClientData(ownerId: string): Promise<Partial<AppState> 
   if (error) throw error;
   return (data?.data as Partial<AppState>) ?? null;
 }
+
+// ───────────── Clubs ─────────────
+
+export type ClubVisibility = 'private' | 'public';
+
+export type Club = {
+  id: string;
+  name: string;
+  description: string;
+  visibility: ClubVisibility;
+  owner: string;
+  ownerName: string;
+  members: number;
+  isMember: boolean;
+  isOwner: boolean;
+};
+
+export type ClubMember = PublicProfile & { joined_at: string };
+
+export type JoinResult = { ok: true; club: string; name: string; already: boolean } | { ok: false; error: 'not_found' | 'full' | 'too_many' | 'too_many_tries' };
+
+export const JOIN_ERRORS: Record<Exclude<JoinResult, { ok: true }>['error'], string> = {
+  not_found: 'No club with that code. Ask for a new link: the owner may have changed the code.',
+  full: 'This club is full (300 members).',
+  too_many: 'You are in 20 clubs already. Leave one to join this one.',
+  too_many_tries: 'Too many wrong codes. Try again in an hour.',
+};
+
+type ClubRow = { id: string; name: string; description: string; visibility: ClubVisibility; owner: string; owner_name: string | null; members: number; is_member: boolean };
+
+async function toClubs(rows: ClubRow[]): Promise<Club[]> {
+  const me = await myId();
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    visibility: c.visibility,
+    owner: c.owner,
+    ownerName: c.owner === me ? 'You' : c.owner_name ?? 'Athlete',
+    members: c.members,
+    isMember: c.is_member,
+    isOwner: c.owner === me,
+  }));
+}
+
+/** Clubs you're in. */
+export async function listMyClubs(): Promise<Club[]> {
+  const { data, error } = await db().rpc('list_clubs', { p_query: null });
+  if (error) throw error;
+  return toClubs((data ?? []) as ClubRow[]);
+}
+
+/** Public clubs whose name contains the search (at least 2 letters). */
+export async function searchClubs(query: string): Promise<Club[]> {
+  if (query.trim().length < 2) return [];
+  const { data, error } = await db().rpc('list_clubs', { p_query: query.trim() });
+  if (error) throw error;
+  return toClubs((data ?? []) as ClubRow[]);
+}
+
+export async function getClub(id: string): Promise<Club | null> {
+  const mine = await listMyClubs();
+  const found = mine.find((c) => c.id === id);
+  if (found) return found;
+  const { data } = await db().from('clubs').select('id, name').eq('id', id).maybeSingle();
+  if (!data) return null;
+  const hits = await searchClubs(data.name);
+  return hits.find((c) => c.id === id) ?? null;
+}
+
+export async function createClub(name: string, description: string, visibility: ClubVisibility): Promise<string> {
+  const { data, error } = await db().rpc('create_club', { p_name: name, p_description: description, p_visibility: visibility });
+  if (error) throw new Error(/too_many_clubs/.test(error.message) ? 'You can own up to 10 clubs.' : 'Could not create the club. Check your connection and try again.');
+  return data as string;
+}
+
+export async function updateClub(id: string, change: Partial<Pick<Club, 'name' | 'description' | 'visibility'>>) {
+  const { error } = await db().from('clubs').update(change).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteClub(id: string) {
+  const { error } = await db().from('clubs').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function joinClubByCode(code: string): Promise<JoinResult> {
+  const { data, error } = await db().rpc('join_club', { p_code: code });
+  if (error) throw error;
+  return data as JoinResult;
+}
+
+export async function joinPublicClub(id: string): Promise<JoinResult> {
+  const { data, error } = await db().rpc('join_public_club', { p_club: id });
+  if (error) throw error;
+  return data as JoinResult;
+}
+
+/** Leave a club. Owners can't leave; they delete the club instead. */
+export async function leaveClub(id: string) {
+  const me = await myId();
+  const { error } = await db().from('club_members').delete().eq('club_id', id).eq('user_id', me);
+  if (error) throw error;
+}
+
+/** Owner only. */
+export async function removeClubMember(id: string, userId: string) {
+  const { error } = await db().from('club_members').delete().eq('club_id', id).eq('user_id', userId);
+  if (error) throw error;
+}
+
+/** Members only. */
+export async function getClubCode(id: string): Promise<string> {
+  const { data, error } = await db().from('club_codes').select('code').eq('club_id', id).single();
+  if (error) throw error;
+  return data.code as string;
+}
+
+/** Owner only: the old code and links stop working. */
+export async function resetClubCode(id: string): Promise<string> {
+  const { data, error } = await db().rpc('reset_club_code', { p_club: id });
+  if (error) throw error;
+  return data as string;
+}
+
+/** Members, best of the week first (points this week, then streak). */
+export async function listClubMembers(id: string): Promise<ClubMember[]> {
+  const { data, error } = await db()
+    .from('club_members')
+    .select('joined_at, profiles(id, display_name, week_start, week_points, streak, avatar_url, xp, level)')
+    .eq('club_id', id);
+  if (error) throw error;
+  type Row = { joined_at: string; profiles: PublicProfile | null };
+  return ((data ?? []) as unknown as Row[])
+    .filter((r) => r.profiles)
+    .map((r) => ({ ...r.profiles!, joined_at: r.joined_at }))
+    .sort((a, b) => pointsThisWeek(b) - pointsThisWeek(a) || b.streak - a.streak);
+}
+
+/** Posts of club members that were shared with friends or everyone. */
+export async function getClubFeed(id: string, before?: string): Promise<Post[]> {
+  const { data, error } = await db().rpc('get_club_feed', { p_club: id, p_limit: 25, p_before: before ?? null });
+  if (error) throw error;
+  return toPosts((data ?? []) as FeedRow[]);
+}
+
+/** Your user id (from the saved session). */
+export const currentUserId = myId;

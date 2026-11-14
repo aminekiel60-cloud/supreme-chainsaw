@@ -23,6 +23,21 @@ export function inviteMessage(code: string) {
   return `Lock in with me on Locked in 🔒\nTap to add me as a friend:\n${inviteLink(code)}\n\nOr enter my code in the app: ${code}`;
 }
 
+/** The link to join a club. Opens the app on the club's join screen. */
+export function clubLink(code: string) {
+  return `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite?c=${code}&club=1`;
+}
+
+export function clubMessage(name: string, code: string) {
+  return `Join my club "${name}" on Locked in 🔒\nTap to join:\n${clubLink(code)}\n\nOr enter the code in the app (You, Clubs): ${code}`;
+}
+
+/** Pull the club code out of an incoming link (lockedin://club?code=...), if it is one. */
+export function clubCodeFromLink(path: string): string | null {
+  const match = /(?:^|\/)club\/?\?(?:.*&)?code=([A-Za-z0-9]{4,16})/.exec(path);
+  return match ? match[1].toUpperCase() : null;
+}
+
 /** Pull the invite code out of an incoming link, if it is one. */
 export function inviteCodeFromLink(path: string): string | null {
   const match = /invite\/?\?(?:.*&)?code=([A-Za-z0-9-]{4,16})/.exec(path);
