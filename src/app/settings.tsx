@@ -94,6 +94,28 @@ export default function ProfileScreen() {
       </Card>
 
       <Card style={{ gap: Spacing.md }}>
+        <SectionTitle>Start screen</SectionTitle>
+        <Text style={ui.muted}>The page the app opens on.</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+          {(
+            [
+              ['today', 'Today'],
+              ['food', 'Food diary'],
+              ['coach', 'Workouts'],
+              ['feed', 'Feed'],
+            ] as const
+          ).map(([id, label]) => (
+            <Chip key={id} label={label} active={settings.startScreen === id} onPress={() => dispatch({ type: 'setSettings', settings: { ...settings, startScreen: id } })} />
+          ))}
+        </View>
+        <Text style={ui.muted}>The big ring on Today shows</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+          <Chip label="Calories" active={settings.bigRing === 'calories'} onPress={() => dispatch({ type: 'setSettings', settings: { ...settings, bigRing: 'calories' } })} />
+          <Chip label="Habits" active={settings.bigRing === 'habits'} onPress={() => dispatch({ type: 'setSettings', settings: { ...settings, bigRing: 'habits' } })} />
+        </View>
+      </Card>
+
+      <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Rest timer</SectionTitle>
         <Text style={ui.muted}>Starts when you tick off a set. Pick Off to never start it. You can also set it per exercise in a workout.</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>

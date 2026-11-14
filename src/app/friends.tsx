@@ -237,7 +237,7 @@ export default function FriendsScreen() {
           <SectionTitle>Sent requests</SectionTitle>
           {outgoing.map((f) => (
             <View key={f.id} style={s.row}>
-              <Avatar name={f.friend.display_name} url={f.friend.avatar_url} size={32} />
+              <Avatar name={f.friend.display_name} url={f.friend.avatar_url} size={32} ringLevel={f.friend.level} />
               <Text style={[ui.text, { flex: 1 }]}>{f.friend.display_name}</Text>
               <Text style={ui.muted}>Pending</Text>
             </View>

@@ -254,6 +254,10 @@ export type Settings = {
   restSeconds: number;
   /** Which stats the weekly review shows */
   reviewStats: string[];
+  /** The page the app opens on */
+  startScreen: 'today' | 'food' | 'coach' | 'feed';
+  /** What the big ring on Today shows */
+  bigRing: 'calories' | 'habits';
 };
 
 export type AppState = {

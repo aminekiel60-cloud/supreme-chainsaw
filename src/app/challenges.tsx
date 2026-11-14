@@ -251,7 +251,7 @@ function ChallengeCard({ challenge: c, busy, onJoin, onLeave }: { challenge: Cha
         {members.slice(0, 5).map((m, i) => (
           <View key={m.user_id} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
             <Text style={s.rank}>{i + 1}</Text>
-            <Avatar name={m.name} url={m.avatar} size={30} highlight={m.name === 'You'} />
+            <Avatar name={m.name} url={m.avatar} size={30} highlight />
             <Text style={[ui.text, { flex: 1 }]}>{m.name}</Text>
             <Text style={{ color: Colors.text, fontWeight: '700' }}>
               {m.progress} {unit}

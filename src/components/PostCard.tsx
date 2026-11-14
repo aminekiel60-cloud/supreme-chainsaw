@@ -99,7 +99,7 @@ export function PostCard({ post, actions }: { post: Post; actions: PostActions }
     <View style={s.post}>
       {/* Who and when */}
       <View style={s.head}>
-        <Avatar name={post.author} url={post.authorAvatar} size={44} highlight={post.authorTraining || mine} />
+        <Avatar name={post.author} url={post.authorAvatar} size={44} ringLevel={post.authorLevel} />
         <View style={{ flex: 1 }}>
           <Text style={s.name}>{post.author}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

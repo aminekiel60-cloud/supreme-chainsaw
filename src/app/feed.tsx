@@ -161,7 +161,7 @@ function CloudFeed() {
         </Pressable>
         {accepted.map((f) => (
           <Pressable key={f.id} style={s.person} onPress={() => router.push('/friends')}>
-            <Avatar name={f.friend.display_name} url={f.friend.avatar_url} size={60} highlight />
+            <Avatar name={f.friend.display_name} url={f.friend.avatar_url} size={60} ringLevel={f.friend.level} />
             <Text style={s.personName} numberOfLines={1}>
               {f.friend.display_name}
             </Text>

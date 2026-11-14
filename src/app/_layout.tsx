@@ -1,7 +1,7 @@
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { Celebration } from '@/components/Celebration';
@@ -65,6 +65,20 @@ function RootStack() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
+
+  // Open the page you chose in Settings, once per app start.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!ready || !signedIn || !onboarded || opened.current) return;
+    opened.current = true;
+    const start = state.settings.startScreen;
+    if (start === 'today') return;
+    const timer = setTimeout(() => {
+      if (start === 'coach') router.navigate('/coach');
+      else router.push(start === 'food' ? '/nutrition' : '/feed');
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [ready, signedIn, onboarded, state.settings.startScreen]);
 
   // Friends see "Training now" while you're in a live workout.
   const training = Boolean(state.activeWorkout);

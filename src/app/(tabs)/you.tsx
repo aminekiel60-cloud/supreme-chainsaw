@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Avatar } from '@/components/Avatar';
+import { Avatar, LEVEL_TIERS } from '@/components/Avatar';
 import { ListRow, Section, TabPage, Tile } from '@/components/layout';
 import { FadeInCard } from '@/components/motion';
 import { Card, ProgressBar, styles as ui, type IconName } from '@/components/ui';
@@ -23,6 +23,7 @@ export default function YouScreen() {
   const [requests, setRequests] = useState(0);
   const xp = totalXp(state);
   const level = levelInfo(xp);
+  const nextTier = [...LEVEL_TIERS].reverse().find((tier) => tier.from > level.level);
   const all = badges(state);
   const earned = all.filter((b) => b.earned).length;
   const days = activeDays(state);
@@ -73,7 +74,7 @@ export default function YouScreen() {
         <Card style={{ gap: Spacing.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg }}>
             <Pressable onPress={changePhoto} disabled={!cloudEnabled} accessibilityLabel="Change profile picture">
-              <Avatar name={state.profile?.name ?? '?'} url={state.avatarUrl} size={76} highlight />
+              <Avatar name={state.profile?.name ?? '?'} url={state.avatarUrl} size={76} ringLevel={level.level} />
               {cloudEnabled && (
                 <View style={s.camera}>
                   {uploading ? <ActivityIndicator size="small" color={Colors.background} /> : <Ionicons name="camera" size={14} color={Colors.background} />}
@@ -96,7 +97,10 @@ export default function YouScreen() {
               <Text style={ui.muted}>{level.title}</Text>
             </View>
             <ProgressBar progress={level.progress} />
-            <Text style={ui.muted}>{(level.needed - level.intoLevel).toLocaleString('en-US')} XP to level {level.level + 1}</Text>
+            <Text style={ui.muted}>
+              {(level.needed - level.intoLevel).toLocaleString('en-US')} XP to level {level.level + 1}.{' '}
+              {nextTier ? `${nextTier.name} border at level ${nextTier.from}.` : 'You have the Legend border.'}
+            </Text>
           </Pressable>
         </Card>
       </FadeInCard>

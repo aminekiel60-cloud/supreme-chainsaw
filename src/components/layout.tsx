@@ -35,7 +35,7 @@ export function AppHeader({ dot }: { dot?: boolean }) {
           {dot && <View style={s.dot} />}
         </Pressable>
         <Pressable hitSlop={8} onPress={() => router.navigate('/you')} accessibilityLabel="Your profile">
-          <Avatar name={state.profile?.name ?? '?'} url={state.avatarUrl} size={32} highlight />
+          <Avatar name={state.profile?.name ?? '?'} url={state.avatarUrl} size={32} ringLevel={levelInfo(totalXp(state)).level} />
         </Pressable>
       </View>
     </View>

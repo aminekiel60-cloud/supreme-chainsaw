@@ -1,6 +1,6 @@
 /**
  * Water tracker: one bottle per portion of your daily goal.
- * Tap the "+" bottle to drink one, tap a full bottle to undo.
+ * Tap a bottle to fill every bottle up to it. Tap the last full bottle to empty it.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -52,9 +52,12 @@ export function WaterCard() {
   const bottles = Math.max(1, Math.ceil(goal / size), Math.floor(drunk / size) + 1);
   const done = drunk >= goal;
 
-  const add = (ml: number) => {
+  /** Fill up to and including bottle `i`, or empty it when it's already the last full one. */
+  const tapBottle = (i: number) => {
     haptics.tap();
-    dispatch({ type: 'addWater', date: today, ml });
+    let target = (i + 1) * size;
+    if (drunk === target) target = i * size;
+    dispatch({ type: 'addWater', date: today, ml: target - drunk });
   };
 
   return (
@@ -78,8 +81,8 @@ export function WaterCard() {
             <Pressable
               key={i}
               hitSlop={4}
-              onPress={() => (fill > 0 ? add(-size) : add(size))}
-              accessibilityLabel={fill > 0 ? 'Remove a bottle' : 'Drink a bottle'}>
+              onPress={() => tapBottle(i)}
+              accessibilityLabel={`Bottle ${i + 1}`}>
               <Pop trigger={fill > 0}>
                 <Bottle fill={fill} plus={isNext} />
               </Pop>
@@ -88,7 +91,7 @@ export function WaterCard() {
         })}
       </View>
       <Text style={ui.muted}>
-        {done ? 'Goal reached. Nice work.' : `One bottle is ${size} ml. Tap + to drink, tap a full bottle to undo.`}
+        {done ? 'Goal reached. Nice work.' : `One bottle is ${size} ml. Tap a bottle to fill up to it, tap the last full one to undo.`}
       </Text>
     </Card>
   );

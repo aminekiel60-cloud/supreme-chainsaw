@@ -43,6 +43,8 @@ export default function TodayScreen() {
   const goals = goalsFor(state, day);
   const steps = state.health[day]?.steps ?? 0;
   const water = state.water[day] ?? 0;
+  const ringCalories = state.settings.bigRing === 'calories';
+  const kcalLeft = goals.kcal - totals.kcal;
 
   const dayLabel = isToday ? 'Today' : day === addDays(today, -1) ? 'Yesterday' : prettyDate(day);
 
@@ -68,27 +70,51 @@ export default function TodayScreen() {
 
       {isToday && <ActiveWorkoutBanner />}
 
-      {/* Big ring: how locked in the day is */}
-      <FadeInCard index={0} style={{ alignItems: 'center', gap: 6 }}>
-        <Pressable onPress={() => router.push('/calendar')} accessibilityLabel="Open calendar">
-          <ProgressRing size={200} stroke={14} progress={progress} color={Colors.lime}>
-            <Ionicons name={locked ? 'lock-closed' : 'lock-open-outline'} size={54} color={locked ? Colors.lime : Colors.text} />
-          </ProgressRing>
-        </Pressable>
-        <CountUp value={doneCount} format={(n) => `${n} of ${HABITS.length}`} style={[Type.hero, { color: Colors.text, fontSize: 40 }]} />
-        <Text style={ui.muted}>{locked ? (isToday ? 'You are locked in today' : 'Locked in') : `Habits done. ${Math.ceil(HABITS.length * LOCKED_IN_THRESHOLD)} locks the day.`}</Text>
-      </FadeInCard>
+      {/* Big ring: calories or habits, your choice in Settings */}
+      {ringCalories ? (
+        <FadeInCard index={0} style={{ alignItems: 'center', gap: 6 }}>
+          <Pressable onPress={() => router.push({ pathname: '/nutrition', params: { date: day } })} accessibilityLabel="Open food diary">
+            <ProgressRing size={210} stroke={14} progress={totals.kcal / goals.kcal} color={totals.kcal > goals.kcal ? Colors.fat : Colors.lime}>
+              <CountUp value={Math.round(totals.kcal)} format={(n) => n.toLocaleString('en-US')} style={[Type.hero, { color: Colors.text, fontSize: 48 }]} />
+              <Text style={ui.muted}>kcal of {goals.kcal.toLocaleString('en-US')}</Text>
+            </ProgressRing>
+          </Pressable>
+          <Text style={{ color: kcalLeft >= 0 ? Colors.lime : Colors.fat, fontWeight: '800', fontSize: 16 }}>
+            {Math.abs(Math.round(kcalLeft)).toLocaleString('en-US')} kcal {kcalLeft >= 0 ? 'left' : 'over'}
+          </Text>
+        </FadeInCard>
+      ) : (
+        <FadeInCard index={0} style={{ alignItems: 'center', gap: 6 }}>
+          <Pressable onPress={() => router.push('/calendar')} accessibilityLabel="Open calendar">
+            <ProgressRing size={200} stroke={14} progress={progress} color={Colors.lime}>
+              <Ionicons name={locked ? 'lock-closed' : 'lock-open-outline'} size={54} color={locked ? Colors.lime : Colors.text} />
+            </ProgressRing>
+          </Pressable>
+          <CountUp value={doneCount} format={(n) => `${n} of ${HABITS.length}`} style={[Type.hero, { color: Colors.text, fontSize: 40 }]} />
+          <Text style={ui.muted}>{locked ? (isToday ? 'You are locked in today' : 'Locked in') : `Habits done. ${Math.ceil(HABITS.length * LOCKED_IN_THRESHOLD)} locks the day.`}</Text>
+        </FadeInCard>
+      )}
 
       {/* Three small rings */}
       <FadeInCard index={1} style={{ flexDirection: 'row' }}>
-        <MiniRing
-          icon="flame"
-          value={Math.round(totals.kcal).toLocaleString('en-US')}
-          label={`of ${goals.kcal.toLocaleString('en-US')} kcal`}
-          progress={totals.kcal / goals.kcal}
-          color={totals.kcal > goals.kcal ? Colors.fat : Colors.lime}
-          onPress={() => router.push('/nutrition')}
-        />
+        {ringCalories ? (
+          <MiniRing
+            icon={locked ? 'lock-closed' : 'lock-open-outline'}
+            value={`${doneCount} of ${HABITS.length}`}
+            label={locked ? 'locked in' : 'habits done'}
+            progress={progress}
+            onPress={() => router.push('/calendar')}
+          />
+        ) : (
+          <MiniRing
+            icon="flame"
+            value={Math.round(totals.kcal).toLocaleString('en-US')}
+            label={`of ${goals.kcal.toLocaleString('en-US')} kcal`}
+            progress={totals.kcal / goals.kcal}
+            color={totals.kcal > goals.kcal ? Colors.fat : Colors.lime}
+            onPress={() => router.push('/nutrition')}
+          />
+        )}
         <MiniRing
           icon="barbell"
           value={`${Math.round(totals.protein)} g`}
