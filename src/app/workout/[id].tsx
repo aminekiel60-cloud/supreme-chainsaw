@@ -1,12 +1,13 @@
-/** WORKOUT — summary, photo, friends tagged, and a Strava-style share card. */
+/** WORKOUT: summary, sharing to the feed, photo, friends tagged, and a Strava-style share card. */
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { RouteMap } from '@/components/RouteMap';
 import { ShareCard, saveCard, shareCard, type ShareStyle } from '@/components/ShareCard';
+import { ShareToFeed } from '@/components/ShareToFeed';
 import { TagFriends } from '@/components/TagFriends';
 import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing, Type } from '@/constants/theme';
@@ -18,7 +19,8 @@ import { formatDistance, pace, sport } from '@/store/logic';
 import { useStore } from '@/store/store';
 
 export default function WorkoutScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, fresh } = useLocalSearchParams<{ id: string; fresh?: string }>();
+  const [routineName, setRoutineName] = useState<string | null>(null);
   const { state, dispatch } = useStore();
   const workout = state.workouts.find((w) => w.id === id);
   const [style, setStyle] = useState<ShareStyle>('sticker');
@@ -78,13 +80,15 @@ export default function WorkoutScreen() {
     }
   };
 
-  const saveAsRoutine = () => {
+  const saveAsRoutine = (name: string) => {
+    const clean = name.trim() || workout.title;
     dispatch({
       type: 'addRoutine',
-      routine: { name: workout.title, exercises: (workout.exercises ?? []).map((e) => ({ name: e.name, sets: e.sets.length, restSeconds: e.restSeconds })) },
+      routine: { name: clean, exercises: (workout.exercises ?? []).map((e) => ({ name: e.name, sets: e.sets.length, restSeconds: e.restSeconds })) },
     });
     dispatch({ type: 'updateWorkout', id: workout.id, changes: { routineId: 'saved' } });
-    Alert.alert('Saved as routine', `“${workout.title}” is now under Coach, Routines.`);
+    setRoutineName(null);
+    Alert.alert('Saved as routine', `“${clean}” is now under Coach, Routines.`);
   };
 
   const remove = () =>
@@ -122,6 +126,8 @@ export default function WorkoutScreen() {
           {workout.tagged?.length ? `, with ${workout.tagged.map((t) => t.name).join(', ')}` : ''}
         </Text>
       </View>
+
+      {cloudEnabled && <ShareToFeed workout={workout} highlight={fresh === '1'} />}
 
       {workout.prs?.length ? (
         <Card highlight style={{ gap: 6 }}>
@@ -176,7 +182,7 @@ export default function WorkoutScreen() {
           <SectionTitle
             action={
               !workout.routineId ? (
-                <Pressable onPress={saveAsRoutine}>
+                <Pressable onPress={() => setRoutineName(workout.title)}>
                   <Text style={{ color: Colors.lime, fontWeight: '700' }}>Save as routine</Text>
                 </Pressable>
               ) : undefined
@@ -241,6 +247,34 @@ export default function WorkoutScreen() {
       <Pressable onPress={remove} style={{ padding: 12 }}>
         <Text style={{ color: Colors.danger, textAlign: 'center', fontWeight: '600' }}>Delete workout</Text>
       </Pressable>
+      <Modal visible={routineName !== null} transparent animationType="fade" onRequestClose={() => setRoutineName(null)}>
+        <Pressable style={s.backdrop} onPress={() => setRoutineName(null)}>
+          <Pressable style={s.dialog} onPress={() => {}}>
+            <Text style={[Type.heading, { color: Colors.text }]}>Name your routine</Text>
+            <TextInput
+              style={ui.input}
+              value={routineName ?? ''}
+              onChangeText={setRoutineName}
+              placeholder="e.g. Push day A"
+              placeholderTextColor={Colors.textFaint}
+              autoFocus
+              selectTextOnFocus
+              onSubmitEditing={() => saveAsRoutine(routineName ?? '')}
+              returnKeyType="done"
+              maxLength={40}
+            />
+            <Text style={ui.muted}>{workout.exercises?.length ?? 0} exercises with their sets and rest times.</Text>
+            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Button title="Cancel" variant="ghost" onPress={() => setRoutineName(null)} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button title="Save" icon="checkmark" onPress={() => saveAsRoutine(routineName ?? '')} />
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -256,6 +290,8 @@ function Big({ label, value, unit }: { label: string; value: string; unit?: stri
 }
 
 const s = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.xl },
+  dialog: { backgroundColor: Colors.card, borderRadius: Radius.lg, padding: Spacing.xl, gap: Spacing.md, borderWidth: 1, borderColor: Colors.border },
   hero: { alignItems: 'center', gap: 8, paddingTop: 8 },
   heroIcon: {
     width: 64,

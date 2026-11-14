@@ -8,12 +8,6 @@ import type { AppState, Exercise, ExerciseSet, MuscleGroup, PersonalRecord, Work
 
 const key = (name: string) => name.trim().toLowerCase();
 
-/** Estimated one-rep max (Epley). Single reps count as is. */
-export function oneRepMax(set: Pick<ExerciseSet, 'reps' | 'weight'>): number {
-  if (set.reps <= 0 || set.weight <= 0) return 0;
-  return set.reps === 1 ? set.weight : Math.round(set.weight * (1 + set.reps / 30) * 10) / 10;
-}
-
 const working = (sets: ExerciseSet[]) => sets.filter((s) => !s.warmup && s.reps > 0);
 
 export type HistoryEntry = { workoutId: string; date: string; sets: ExerciseSet[] };
@@ -29,9 +23,13 @@ export function exerciseHistory(state: AppState, name: string, before?: Workout)
     .map(({ w }) => ({ workoutId: w.id, date: w.date, sets: w.exercises!.find((e) => key(e.name) === k)!.sets }));
 }
 
+/**
+ * Only real numbers you lifted: no estimated maxes.
+ * bestWeight: heaviest weight (with the most reps you did at it).
+ * bestVolume: most weight × reps in one session.
+ */
 export type Records = {
   bestWeight: { weight: number; reps: number; date: string } | null;
-  best1RM: { value: number; weight: number; reps: number; date: string } | null;
   bestVolume: { value: number; date: string } | null;
   sessions: number;
 };
@@ -39,15 +37,13 @@ export type Records = {
 /** Your records for an exercise (optionally ignoring one workout, e.g. the one in progress). */
 export function exerciseRecords(state: AppState, name: string, before?: Workout): Records {
   const history = exerciseHistory(state, name, before);
-  const r: Records = { bestWeight: null, best1RM: null, bestVolume: null, sessions: history.length };
+  const r: Records = { bestWeight: null, bestVolume: null, sessions: history.length };
   for (const h of history) {
     const sets = working(h.sets);
     for (const s of sets) {
       if (!r.bestWeight || s.weight > r.bestWeight.weight || (s.weight === r.bestWeight.weight && s.reps > r.bestWeight.reps)) {
         r.bestWeight = { weight: s.weight, reps: s.reps, date: h.date };
       }
-      const orm = oneRepMax(s);
-      if (!r.best1RM || orm > r.best1RM.value) r.best1RM = { value: orm, weight: s.weight, reps: s.reps, date: h.date };
     }
     const volume = sets.reduce((t, s) => t + s.reps * s.weight, 0);
     if (volume > 0 && (!r.bestVolume || volume > r.bestVolume.value)) r.bestVolume = { value: volume, date: h.date };
@@ -55,19 +51,43 @@ export function exerciseRecords(state: AppState, name: string, before?: Workout)
   return r;
 }
 
-/** Records broken by `workout`, compared with everything before it. */
+/** Most reps you ever did with this weight or more (0 if never). */
+export function bestRepsAt(state: AppState, name: string, weight: number, before?: Workout): number {
+  let best = 0;
+  for (const h of exerciseHistory(state, name, before)) {
+    for (const s of working(h.sets)) if (s.weight >= weight && s.reps > best) best = s.reps;
+  }
+  return best;
+}
+
+/** Is this set a record? Heavier than ever, or more reps than ever at this weight. */
+export function setRecord(state: AppState, name: string, set: Pick<ExerciseSet, 'weight' | 'reps' | 'warmup'>, before?: Workout): 'weight' | 'reps' | null {
+  if (set.warmup || set.reps <= 0 || set.weight <= 0) return null;
+  const records = exerciseRecords(state, name, before);
+  if (records.sessions === 0 || !records.bestWeight) return null; // first time: nothing to beat yet
+  if (set.weight > records.bestWeight.weight) return 'weight';
+  if (set.reps > bestRepsAt(state, name, set.weight, before)) return 'reps';
+  return null;
+}
+
+/** Records broken by `workout`, compared with everything before it. One per exercise, the best kind first. */
 export function detectRecords(state: AppState, workout: Workout): PersonalRecord[] {
   const prs: PersonalRecord[] = [];
   for (const ex of workout.exercises ?? []) {
-    const sets = working(ex.sets);
+    const sets = working(ex.sets).filter((s) => s.weight > 0);
     if (sets.length === 0) continue;
     const before = exerciseRecords(state, ex.name, workout);
-    if (before.sessions === 0) continue; // first time: nothing to beat yet
-    const topWeight = Math.max(...sets.map((s) => s.weight));
-    const top1RM = Math.max(...sets.map(oneRepMax));
+    if (before.sessions === 0) continue;
+    const top = sets.reduce((a, b) => (b.weight > a.weight || (b.weight === a.weight && b.reps > a.reps) ? b : a));
     const volume = sets.reduce((t, s) => t + s.reps * s.weight, 0);
-    if (before.bestWeight && topWeight > before.bestWeight.weight) prs.push({ exercise: ex.name, kind: 'weight', value: topWeight });
-    else if (before.best1RM && top1RM > before.best1RM.value) prs.push({ exercise: ex.name, kind: '1rm', value: top1RM });
+    if (before.bestWeight && top.weight > before.bestWeight.weight) {
+      prs.push({ exercise: ex.name, kind: 'weight', value: top.weight, reps: top.reps });
+      continue;
+    }
+    const repPr = sets
+      .filter((s) => s.reps > bestRepsAt(state, ex.name, s.weight, workout))
+      .sort((a, b) => b.weight - a.weight)[0];
+    if (repPr) prs.push({ exercise: ex.name, kind: 'reps', value: repPr.weight, reps: repPr.reps });
     else if (before.bestVolume && volume > before.bestVolume.value) prs.push({ exercise: ex.name, kind: 'volume', value: volume });
   }
   return prs;
@@ -76,11 +96,13 @@ export function detectRecords(state: AppState, workout: Workout): PersonalRecord
 export function describeRecord(pr: PersonalRecord): string {
   switch (pr.kind) {
     case 'weight':
-      return `${pr.exercise}: ${pr.value} kg, heaviest ever`;
-    case '1rm':
-      return `${pr.exercise}: est. 1RM ${pr.value} kg`;
+      return `${pr.exercise}: ${pr.value} kg${pr.reps ? ` for ${pr.reps}` : ''}, heaviest ever`;
+    case 'reps':
+      return `${pr.exercise}: ${pr.reps} reps at ${pr.value} kg, most ever`;
     case 'volume':
-      return `${pr.exercise}: ${pr.value.toLocaleString('en-US')} kg volume`;
+      return `${pr.exercise}: ${pr.value.toLocaleString('en-US')} kg in one session, most ever`;
+    default:
+      return `${pr.exercise}: personal record`;
   }
 }
 
@@ -176,4 +198,48 @@ export function platesPerSide(total: number, barKg = 20, available = [25, 20, 15
 
 export function exerciseVolume(ex: Exercise): number {
   return working(ex.sets).reduce((t, s) => t + s.reps * s.weight, 0);
+}
+
+function editDistance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let last = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, last + (a[i - 1] === b[j - 1] ? 0 : 1));
+      last = tmp;
+    }
+  }
+  return prev[b.length];
+}
+
+/** The library exercise this name is probably a typo of ("Leg extention" gives "Leg extension"), if any. */
+export function closestExercise(name: string): string | null {
+  const k = key(name);
+  if (k.length < 4 || EXERCISE_LIBRARY.some((e) => key(e.name) === k)) return null;
+  let best: { name: string; d: number } | null = null;
+  for (const e of EXERCISE_LIBRARY) {
+    const d = editDistance(k, key(e.name));
+    if (!best || d < best.d) best = { name: e.name, d };
+  }
+  return best && best.d <= Math.max(2, Math.floor(k.length * 0.2)) ? best.name : null;
+}
+
+/** Everything that changes when an exercise is renamed (used to merge a typo into the right exercise). */
+export function renameExercise(state: AppState, from: string, to: string): Partial<AppState> {
+  const k = key(from);
+  const rename = (n: string) => (key(n) === k ? to : n);
+  const notes = { ...state.exerciseNotes };
+  if (notes[from] && !notes[to]) notes[to] = notes[from];
+  delete notes[from];
+  return {
+    workouts: state.workouts.map((w) => (w.exercises ? { ...w, exercises: w.exercises.map((e) => ({ ...e, name: rename(e.name) })) } : w)),
+    routines: state.routines.map((r) => ({ ...r, exercises: r.exercises.map((e) => ({ ...e, name: rename(e.name) })) })),
+    customExercises: state.customExercises.filter((e) => key(e.name) !== k),
+    exerciseNotes: notes,
+    activeWorkout: state.activeWorkout
+      ? { ...state.activeWorkout, exercises: state.activeWorkout.exercises.map((e) => ({ ...e, name: rename(e.name) })) }
+      : null,
+  };
 }

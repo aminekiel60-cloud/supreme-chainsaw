@@ -129,7 +129,7 @@ export default function LogWorkoutScreen() {
     }
     dispatch({ type: 'addWorkout', workout: { ...workout, prs: detectRecords(state, { ...workout, id }) } });
     // Straight to the summary, so you can share it.
-    router.replace({ pathname: '/workout/[id]', params: { id } });
+    router.replace({ pathname: '/workout/[id]', params: { id, fresh: '1' } });
   };
 
   return (

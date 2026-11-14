@@ -6,31 +6,39 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { ExerciseDemo } from '@/components/ExerciseDemo';
 import { LineChart } from '@/components/LineChart';
-import { Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
+import { Button, Card, Chip, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
-import { MUSCLE_LABELS } from '@/data/exercises';
+import { MUSCLE_GROUPS, MUSCLE_LABELS, libraryExercise } from '@/data/exercises';
 import { prettyDate } from '@/store/dates';
-import { exerciseHistory, exerciseRecords, muscleOf, oneRepMax, suggestNext } from '@/store/exercises';
+import { closestExercise, exerciseHistory, exerciseRecords, muscleOf, renameExercise, suggestNext } from '@/store/exercises';
 import { useStore } from '@/store/store';
 
-type Metric = '1rm' | 'weight' | 'volume';
+type Metric = 'weight' | 'reps' | 'volume';
 
 export default function ExerciseScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
-  const { state } = useStore();
-  const [metric, setMetric] = useState<Metric>('1rm');
+  const { state, dispatch } = useStore();
+  const [metric, setMetric] = useState<Metric>('weight');
   const history = exerciseHistory(state, name);
   const records = exerciseRecords(state, name);
   const suggestion = suggestNext(state, name);
   const muscle = muscleOf(state, name);
+  const inLibrary = Boolean(libraryExercise(name));
+  const suggestedName = closestExercise(name);
+  // Your rep records: the most reps you did at each weight, heaviest first.
+  const repRecords = new Map<number, number>();
+  for (const h of history) for (const x of h.sets) if (!x.warmup && x.weight > 0 && x.reps > (repRecords.get(x.weight) ?? 0)) repRecords.set(x.weight, x.reps);
+  const repList = [...repRecords.entries()].sort((a, b) => b[0] - a[0]).slice(0, 8);
+  const mostReps = repList.reduce<{ weight: number; reps: number } | null>((m, [weight, reps]) => (!m || reps > m.reps ? { weight, reps } : m), null);
 
   const points = [...history].reverse().map((h) => {
     const sets = h.sets.filter((x) => !x.warmup && x.reps > 0);
+    const top = Math.max(0, ...sets.map((x) => x.weight));
     const value =
-      metric === '1rm'
-        ? Math.max(0, ...sets.map(oneRepMax))
-        : metric === 'weight'
-          ? Math.max(0, ...sets.map((x) => x.weight))
+      metric === 'weight'
+        ? top
+        : metric === 'reps'
+          ? Math.max(0, ...sets.filter((x) => x.weight === top).map((x) => x.reps))
           : sets.reduce((t, x) => t + x.reps * x.weight, 0);
     return { label: h.date.slice(5).split('-').reverse().join('/'), value: Math.round(value * 10) / 10 };
   });
@@ -38,6 +46,45 @@ export default function ExerciseScreen() {
   return (
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 48 }}>
       <Stack.Screen options={{ title: name }} />
+      {suggestedName && (
+        <Card highlight style={{ gap: Spacing.sm }}>
+          <Text style={[ui.text, { fontWeight: '800' }]}>Did you mean {suggestedName}?</Text>
+          <Text style={ui.muted}>Merge them and all your sets of {name} count for {suggestedName}, with its photos and records.</Text>
+          <Button
+            title={`Yes, merge into ${suggestedName}`}
+            icon="git-merge-outline"
+            onPress={() => {
+              dispatch({ type: 'apply', change: (s) => renameExercise(s, name, suggestedName) });
+              router.replace({ pathname: '/exercise/[name]', params: { name: suggestedName } });
+            }}
+          />
+        </Card>
+      )}
+
+      {!inLibrary && (
+        <Card style={{ gap: Spacing.sm }}>
+          <Text style={[ui.text, { fontWeight: '800' }]}>Which muscle does it train?</Text>
+          <Text style={ui.muted}>So it counts in Muscles this week.</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {MUSCLE_GROUPS.map((m) => (
+              <Chip
+                key={m}
+                label={MUSCLE_LABELS[m]}
+                active={muscle === m}
+                onPress={() =>
+                  dispatch({
+                    type: 'apply',
+                    change: (s) => ({
+                      customExercises: [...s.customExercises.filter((e) => e.name.toLowerCase() !== name.toLowerCase()), { name, muscle: m }],
+                    }),
+                  })
+                }
+              />
+            ))}
+          </View>
+        </Card>
+      )}
+
       {muscle && (
         <Text style={ui.muted}>
           {MUSCLE_LABELS[muscle]}. {records.sessions === 1 ? 'Done once' : records.sessions ? `Done ${records.sessions} times` : 'Not done yet'}.
@@ -47,20 +94,35 @@ export default function ExerciseScreen() {
 
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <Record label="Best weight" value={records.bestWeight ? `${records.bestWeight.weight} kg` : 'None'} sub={records.bestWeight ? `for ${records.bestWeight.reps} reps` : ''} />
-        <Record label="Est. 1RM" value={records.best1RM ? `${records.best1RM.value} kg` : 'None'} sub={records.best1RM ? `${records.best1RM.weight} × ${records.best1RM.reps}` : ''} />
+        <Record label="Most reps" value={mostReps ? `${mostReps.reps}` : 'None'} sub={mostReps ? `at ${mostReps.weight} kg` : ''} />
         <Record label="Best volume" value={records.bestVolume ? `${records.bestVolume.value.toLocaleString('en-US')}` : 'None'} sub={records.bestVolume ? 'kg in a session' : ''} />
       </View>
 
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Progress</SectionTitle>
         <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-          <Chip label="Est. 1RM" active={metric === '1rm'} onPress={() => setMetric('1rm')} />
           <Chip label="Top weight" active={metric === 'weight'} onPress={() => setMetric('weight')} />
+          <Chip label="Reps at top" active={metric === 'reps'} onPress={() => setMetric('reps')} />
           <Chip label="Volume" active={metric === 'volume'} onPress={() => setMetric('volume')} />
         </View>
-        <LineChart points={points.slice(-20)} unit=" kg" />
+        <LineChart points={points.slice(-20)} unit={metric === 'reps' ? ' reps' : ' kg'} />
         {suggestion && <Text style={{ color: Colors.lime, fontWeight: '600' }}>Next time: {suggestion.hint}</Text>}
       </Card>
+
+      {repList.length > 1 && (
+        <Card style={{ gap: Spacing.sm }}>
+          <SectionTitle>Rep records</SectionTitle>
+          <Text style={ui.muted}>The most reps you did at each weight. Beat one and it counts as a PR.</Text>
+          {repList.map(([kg, reps]) => (
+            <View key={kg} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={ui.text}>{kg} kg</Text>
+              <Text style={{ color: Colors.text, fontWeight: '800' }}>
+                {reps} {reps === 1 ? 'rep' : 'reps'}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      )}
 
       <SectionTitle>History</SectionTitle>
       {history.length === 0 && (
@@ -92,11 +154,6 @@ export default function ExerciseScreen() {
           </Card>
         );
       })}
-      {history.length > 0 && (
-        <Text style={[ui.muted, { textAlign: 'center' }]}>
-          <Ionicons name="information-circle-outline" size={12} /> Est. 1RM uses the Epley formula: weight × (1 + reps ÷ 30)
-        </Text>
-      )}
     </ScrollView>
   );
 }

@@ -3,6 +3,8 @@ import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { hideRestCountdown, showRestCountdown } from '../../modules/rest-timer';
+
 const CHANNEL = 'workout';
 
 /** The current time, refreshed every `intervalMs`. */
@@ -14,6 +16,10 @@ export function useNow(intervalMs = 1000): number {
   }, [intervalMs]);
   return now;
 }
+
+/** Rest timer choices in seconds; 0 means no rest timer. */
+export const REST_OPTIONS = [0, 60, 90, 120, 150, 180, 240, 300];
+export const restLabel = (sec: number) => (sec === 0 ? 'Off' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`);
 
 /** 90 → "1:30", 3725 → "1:02:05" */
 export function formatDuration(totalSeconds: number): string {
@@ -57,6 +63,7 @@ export function scheduleRestNotification(seconds: number): Promise<string | null
       let perm = await Notifications.getPermissionsAsync();
       if (!perm.granted && perm.canAskAgain) perm = await Notifications.requestPermissionsAsync();
       if (!perm.granted) return null;
+      showRestCountdown(Date.now() + seconds * 1000, 'Rest', 'Next set when the timer ends. Tap to open your workout.');
       return await Notifications.scheduleNotificationAsync({
         content: { title: 'Rest over 💪', body: 'Time for your next set.', data: { kind: 'rest' }, sound: true },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.round(seconds), channelId: CHANNEL },
@@ -72,6 +79,7 @@ export function scheduleRestNotification(seconds: number): Promise<string | null
 /** Remove the pending "rest over" notification, if there is one. */
 export function cancelRestNotification(): Promise<void> {
   if (Platform.OS === 'web') return Promise.resolve();
+  hideRestCountdown();
   const job = queue.then(() => cancelAllRest().catch(() => {}));
   queue = job;
   return job;

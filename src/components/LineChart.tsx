@@ -1,4 +1,4 @@
-/** Small line chart (SVG) for progress over time: weight, 1RM, body weight. */
+/** Small line chart (SVG) for progress over time: weight, reps, body weight. */
 import { Text, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 

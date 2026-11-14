@@ -16,9 +16,9 @@ import { Colors, Radius, Spacing, Type } from '@/constants/theme';
 import { libraryExercise } from '@/data/exercises';
 import { program as findProgram } from '@/data/programs';
 import { haptics } from '@/lib/haptics';
-import { cancelRestNotification, formatDuration, scheduleRestNotification, useNow } from '@/lib/workoutTimer';
+import { REST_OPTIONS, cancelRestNotification, formatDuration, restLabel, scheduleRestNotification, useNow } from '@/lib/workoutTimer';
 import { todayKey } from '@/store/dates';
-import { detectRecords, exerciseHistory, exerciseRecords, oneRepMax, suggestNext } from '@/store/exercises';
+import { detectRecords, exerciseHistory, exerciseRecords, setRecord, suggestNext } from '@/store/exercises';
 import { useStore } from '@/store/store';
 import type { ActiveWorkout, Exercise, ExerciseSet, Workout } from '@/store/types';
 
@@ -114,7 +114,8 @@ export default function ActiveWorkoutScreen() {
     updateSet(i, j, { ...fill, done });
     // In a superset you go straight to the next exercise; the rest comes after the last one.
     const nextInSuperset = ex.superset && aw.exercises[i + 1]?.superset === ex.superset;
-    if (done && !nextInSuperset) startRest(ex.restSeconds ?? state.settings.restSeconds);
+    const rest = ex.restSeconds ?? state.settings.restSeconds;
+    if (done && !nextInSuperset && rest > 0) startRest(rest);
   };
 
   const toggleSuperset = (i: number) => {
@@ -206,7 +207,7 @@ export default function ActiveWorkoutScreen() {
     }
     dispatch({ type: 'setActiveWorkout', workout: null });
     haptics.success();
-    router.replace({ pathname: '/workout/[id]', params: { id: workout.id } });
+    router.replace({ pathname: '/workout/[id]', params: { id: workout.id, fresh: '1' } });
   };
 
   const discard = () =>
@@ -364,8 +365,7 @@ function ExerciseCard({
       { text: 'Cancel', style: 'cancel' as const },
     ].filter((x): x is NonNullable<typeof x> => x !== null));
   const isBar = libraryExercise(exercise.name)?.bar;
-  const bestNow = Math.max(0, ...exercise.sets.filter((x) => x.done && !x.warmup).map(oneRepMax));
-  const newPr = records.best1RM && bestNow > records.best1RM.value;
+  const newPr = exercise.sets.some((x) => x.done && setRecord(state, exercise.name, x));
   const rest = exercise.restSeconds ?? defaultRest;
 
   return (
@@ -374,7 +374,7 @@ function ExerciseCard({
         <Pressable style={{ flex: 1 }} onPress={() => router.push({ pathname: '/exercise/[name]', params: { name: exercise.name } })}>
           <Text style={[ui.text, { fontWeight: '800', fontSize: 16 }]}>{exercise.name}</Text>
           <Text style={ui.muted}>
-            {records.best1RM ? `Best ${records.bestWeight!.weight} kg × ${records.bestWeight!.reps}. Est. 1RM ${records.best1RM.value} kg` : 'First time. Set your PR today.'}
+            {records.bestWeight ? `Best ${records.bestWeight.weight} kg × ${records.bestWeight.reps}` : 'First time. Set your PR today.'}
           </Text>
         </Pressable>
         {newPr && (
@@ -460,9 +460,18 @@ function ExerciseCard({
             <Text style={s.linkText}>Plates</Text>
           </Pressable>
         )}
-        <Pressable style={[s.link, { marginLeft: 'auto' }]} onPress={() => onRest(rest >= 180 ? 60 : rest + 30)}>
-          <Ionicons name="timer-outline" size={16} color={Colors.textMuted} />
-          <Text style={[s.linkText, { color: Colors.textMuted }]}>Rest {formatDuration(rest)}</Text>
+        <Pressable
+          style={[s.link, { marginLeft: 'auto' }]}
+          hitSlop={8}
+          accessibilityLabel="Rest timer for this exercise"
+          onPress={() =>
+            Alert.alert(`Rest after ${exercise.name}`, 'Starts when you tick off a set.', [
+              ...REST_OPTIONS.map((sec) => ({ text: sec === rest ? `${restLabel(sec)} (now)` : restLabel(sec), onPress: () => onRest(sec) })),
+              { text: 'Cancel', style: 'cancel' as const },
+            ])
+          }>
+          <Ionicons name={rest ? 'timer-outline' : 'timer'} size={16} color={Colors.textMuted} />
+          <Text style={[s.linkText, { color: Colors.textMuted }]}>{rest ? `Rest ${formatDuration(rest)}` : 'No rest timer'}</Text>
         </Pressable>
       </View>
     </Card>

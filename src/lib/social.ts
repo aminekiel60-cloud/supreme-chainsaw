@@ -336,9 +336,12 @@ export async function shareRecentActivity(state: AppState) {
     stats: unknown;
     workout_type?: string;
     tagged?: string[];
+    visibility?: Visibility;
+    caption?: string | null;
   }[] = [];
 
-  const recent = state.workouts.filter((x) => x.date >= since);
+  // Only workouts you chose to share (older ones, saved before you could choose, count as friends).
+  const recent = state.workouts.filter((x) => x.date >= since && (x.shared ?? 'friends') !== 'none');
   for (const w of recent) {
     const stats = [{ label: 'Time', value: `${w.durationMin} min` }];
     if (w.distanceKm) stats.unshift({ label: 'Distance', value: formatDistance(w) });
@@ -356,6 +359,8 @@ export async function shareRecentActivity(state: AppState) {
       stats,
       workout_type: w.type,
       tagged: (w.tagged ?? []).map((t) => t.id),
+      visibility: w.shared === 'public' ? 'public' : 'friends',
+      caption: w.caption?.trim() || null,
     });
   }
 
@@ -382,15 +387,19 @@ export async function shareRecentActivity(state: AppState) {
   // Keep tags and photos in sync for workouts you edited after logging them.
   const { data: shared } = recent.length === 0 ? { data: [] } : await db()
     .from('posts')
-    .select('id, ref, tagged, photo_path')
+    .select('id, ref, tagged, photo_path, visibility, caption')
     .eq('user_id', me)
     .in('ref', recent.map((w) => `workout:${w.id}`));
   for (const post of shared ?? []) {
     const w = recent.find((x) => `workout:${x.id}` === post.ref);
     if (!w) continue;
     const tagged = (w.tagged ?? []).map((t) => t.id);
-    const changes: { tagged?: string[]; photo_path?: string | null } = {};
+    const changes: { tagged?: string[]; photo_path?: string | null; visibility?: Visibility; caption?: string | null } = {};
     if (JSON.stringify(tagged) !== JSON.stringify(post.tagged ?? [])) changes.tagged = tagged;
+    const visibility: Visibility = w.shared === 'public' ? 'public' : 'friends';
+    if (visibility !== post.visibility) changes.visibility = visibility;
+    const caption = w.caption?.trim() || null;
+    if (caption !== (post.caption ?? null)) changes.caption = caption;
     // The file name follows the local photo, so a changed photo is uploaded again.
     const wanted = w.photoUri ? `${me}/${w.id}-${hash(w.photoUri)}.jpg` : null;
     if (wanted !== (post.photo_path ?? null)) {

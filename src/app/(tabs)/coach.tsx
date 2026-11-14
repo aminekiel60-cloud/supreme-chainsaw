@@ -118,7 +118,7 @@ export default function CoachScreen() {
         <Tile icon="list" label="Routines" detail={`${state.routines.length} saved`} tint="violet" onPress={() => router.push('/routines')} />
         <Tile icon="book" label="Exercises" detail="Library and records" tint="teal" onPress={() => router.push({ pathname: '/exercise-picker', params: { target: 'browse' } })} />
         <Tile icon="create" label="Log a workout" detail="Afterwards, by hand" tint="amber" onPress={() => router.push('/log-workout')} />
-        <Tile icon="calculator" label="1RM and plates" detail="Calculators" tint="coral" onPress={() => router.push('/tools')} />
+        <Tile icon="disc" label="Plate calculator" detail="What to load" tint="coral" onPress={() => router.push('/tools')} />
         <Tile icon="trophy" label="Records" detail="Your best lifts" tint="blue" onPress={() => router.push('/records')} />
       </ScrollView>
 

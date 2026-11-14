@@ -37,7 +37,7 @@ const initialState: AppState = {
     reminderHour: 20,
     bottleMl: 500,
     seenLevel: 0,
-    restSeconds: 90,
+    restSeconds: 180,
     reviewStats: ['workouts', 'activeMinutes', 'volume', 'distance', 'lockedDays', 'prs'],
   },
   goals: { ...DEFAULT_HABIT_GOALS, kcal: 2400, protein: 160, carbs: 260, fat: 75 },
@@ -112,7 +112,8 @@ function reducer(state: AppState, action: Action): AppState {
     case 'updateFood':
       return { ...state, food: state.food.map((f) => (f.id === action.id ? { ...f, ...action.changes } : f)) };
     case 'addWorkout':
-      return { ...state, workouts: [...state.workouts, { ...action.workout, id: action.workout.id ?? newId() }] };
+      // New workouts aren't posted until you choose who sees them.
+      return { ...state, workouts: [...state.workouts, { shared: 'none', ...action.workout, id: action.workout.id ?? newId() }] };
     case 'removeWorkout':
       return { ...state, workouts: state.workouts.filter((w) => w.id !== action.id) };
     case 'toggleHabit': {
@@ -195,7 +196,7 @@ function reducer(state: AppState, action: Action): AppState {
                 ? { ...w, ...fromWatch, externalId: incoming.externalId, distanceKm: w.distanceKm ?? incoming.distanceKm }
                 : w,
             )
-          : [...workouts, { ...incoming, id: newId() }];
+          : [...workouts, { shared: 'none' as const, ...incoming, id: newId() }];
       }
       // A weight from a smart scale becomes a body-weight entry (unless you logged one yourself that day).
       const scale = action.day.weightKg;

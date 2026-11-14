@@ -10,7 +10,7 @@ import { exerciseGuide } from '@/data/exerciseGuide';
 import { MUSCLE_GROUPS, MUSCLE_LABELS } from '@/data/exercises';
 import { haptics } from '@/lib/haptics';
 import { setDraftPick, type PickerTarget } from '@/lib/workouts';
-import { allExercises, exerciseHistory } from '@/store/exercises';
+import { allExercises, closestExercise, exerciseHistory } from '@/store/exercises';
 import { useStore } from '@/store/store';
 import type { Exercise, MuscleGroup } from '@/store/types';
 
@@ -28,6 +28,7 @@ export default function ExercisePickerScreen() {
     .filter((e) => (!muscle || e.muscle === muscle) && (!q || e.name.toLowerCase().includes(q)))
     .sort((a, b) => (b.lastDate ?? '').localeCompare(a.lastDate ?? '') || b.times - a.times || a.name.localeCompare(b.name));
   const exact = all.some((e) => e.name.toLowerCase() === q);
+  const suggestion = q.length > 3 ? closestExercise(query) : null;
 
   const pick = (name: string) => {
     haptics.tap();
@@ -95,6 +96,16 @@ export default function ExercisePickerScreen() {
         contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: 48, gap: 6 }}
         ListHeaderComponent={
           q.length > 1 && !exact ? (
+            <View style={{ gap: 6 }}>
+            {suggestion && (
+              <Pressable onPress={() => pick(suggestion)} style={[s.row, { borderColor: Colors.limeBorder }]}>
+                <Ionicons name="sparkles" size={18} color={Colors.lime} />
+                <Text style={[ui.text, { flex: 1 }]}>
+                  Did you mean <Text style={{ fontWeight: '800', color: Colors.lime }}>{suggestion}</Text>?
+                </Text>
+                <Ionicons name={browse ? 'chevron-forward' : 'add-circle'} size={browse ? 20 : 26} color={Colors.lime} />
+              </Pressable>
+            )}
             <View style={s.create}>
               <Text style={[ui.text, { fontWeight: '700' }]}>Create &quot;{query.trim()}&quot;</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -103,6 +114,7 @@ export default function ExercisePickerScreen() {
                 ))}
               </View>
               <Button title={browse ? 'Create exercise' : 'Create and add'} icon="add" onPress={create} />
+            </View>
             </View>
           ) : undefined
         }

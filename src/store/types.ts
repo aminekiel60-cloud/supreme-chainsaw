@@ -49,8 +49,12 @@ export type Exercise = {
 /** A personal record set during a workout. */
 export type PersonalRecord = {
   exercise: string;
-  kind: 'weight' | '1rm' | 'volume';
+  /** '1rm' only appears in workouts saved by older versions */
+  kind: 'weight' | 'reps' | 'volume' | '1rm';
+  /** kg (or total kg for volume) */
   value: number;
+  /** Reps of the record set */
+  reps?: number;
 };
 
 /** A saved workout plan, e.g. "Push day". */
@@ -126,6 +130,10 @@ export type Workout = {
   splits?: number[];
   /** Day of a training program this workout was */
   programDay?: string;
+  /** Who sees it in the feed. Workouts saved before this existed count as 'friends'. */
+  shared?: 'friends' | 'public' | 'none';
+  /** Caption for the feed post */
+  caption?: string;
 };
 
 /** Body measurements in cm (body fat in %). */

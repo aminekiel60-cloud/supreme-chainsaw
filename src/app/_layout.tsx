@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Celebration } from '@/components/Celebration';
+import { FloatingWorkout } from '@/components/FloatingWorkout';
 import { KeyboardRoot } from '@/components/FormScroll';
 import { LogoIntro } from '@/components/LogoIntro';
 import { Colors } from '@/constants/theme';
@@ -116,7 +117,7 @@ function RootStack() {
           <Stack.Screen name="feed" options={{ title: 'Feed' }} />
           <Stack.Screen name="new-post" options={{ presentation: 'modal', title: 'New post' }} />
           <Stack.Screen name="programs" options={{ title: 'Programs' }} />
-          <Stack.Screen name="tools" options={{ title: 'Calculators' }} />
+          <Stack.Screen name="tools" options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }} />
           <Stack.Screen name="body" options={{ title: 'Body' }} />
           <Stack.Screen name="grocery" options={{ title: 'Grocery list' }} />
           <Stack.Screen name="meals" options={{ presentation: 'modal', title: 'Saved meals' }} />
@@ -131,6 +132,7 @@ function RootStack() {
           <Stack.Screen name="badges" options={{ title: 'Badges' }} />
         </Stack.Protected>
       </Stack>
+      {signedIn && onboarded && <FloatingWorkout />}
       {celebration.kind && <Celebration kind={celebration.kind} level={celebration.level} onDone={celebration.clear} />}
       {showIntro && <LogoIntro onDone={hideIntro} />}
     </View>

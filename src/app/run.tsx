@@ -163,7 +163,7 @@ export default function RunScreen() {
         splits,
       },
     });
-    router.replace({ pathname: '/workout/[id]', params: { id } });
+    router.replace({ pathname: '/workout/[id]', params: { id, fresh: '1' } });
   };
 
   const finish = () => {

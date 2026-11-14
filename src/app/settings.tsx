@@ -9,6 +9,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { connectHealth, openHealthConnectSettings } from '@/lib/health';
 import { cloudEnabled, db } from '@/lib/supabase';
+import { REST_OPTIONS, restLabel } from '@/lib/workoutTimer';
 import { useStore } from '@/store/store';
 
 const REMINDER_HOURS = [18, 19, 20, 21, 22];
@@ -94,12 +95,12 @@ export default function ProfileScreen() {
 
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Rest timer</SectionTitle>
-        <Text style={ui.muted}>Default rest between sets in live workouts. You can change it per exercise too.</Text>
+        <Text style={ui.muted}>Starts when you tick off a set. Pick Off to never start it. You can also set it per exercise in a workout.</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
-          {[60, 90, 120, 150, 180].map((sec) => (
+          {REST_OPTIONS.map((sec) => (
             <Chip
               key={sec}
-              label={`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`}
+              label={restLabel(sec)}
               active={settings.restSeconds === sec}
               onPress={() => dispatch({ type: 'setSettings', settings: { ...settings, restSeconds: sec } })}
             />

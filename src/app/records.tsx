@@ -23,14 +23,14 @@ export default function RecordsScreen() {
     .filter((e) => e.records.bestWeight && e.records.bestWeight.weight > 0)
     .sort((a, b) =>
       sort === 'strength'
-        ? (b.records.best1RM?.value ?? 0) - (a.records.best1RM?.value ?? 0)
+        ? b.records.bestWeight!.weight - a.records.bestWeight!.weight || b.records.bestWeight!.reps - a.records.bestWeight!.reps
         : (b.records.bestWeight!.date > a.records.bestWeight!.date ? 1 : -1),
     );
 
   return (
     <StackPage>
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <Chip label="Strongest" active={sort === 'strength'} onPress={() => setSort('strength')} />
+        <Chip label="Heaviest" active={sort === 'strength'} onPress={() => setSort('strength')} />
         <Chip label="Newest" active={sort === 'recent'} onPress={() => setSort('recent')} />
       </View>
       {rows.length === 0 && (
@@ -57,7 +57,6 @@ export default function RecordsScreen() {
                 </View>
               </View>
               <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-                {e.records.best1RM && <Pill icon="flash" text={`Est. 1RM ${e.records.best1RM.value} kg`} />}
                 {e.records.bestVolume && <Pill icon="layers" text={`Best session ${e.records.bestVolume.value.toLocaleString('en-US')} kg`} />}
                 <Pill icon="repeat" text={`${e.records.sessions} ${e.records.sessions === 1 ? 'session' : 'sessions'}`} />
               </View>
