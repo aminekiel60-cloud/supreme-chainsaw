@@ -86,7 +86,7 @@ export default function WeeklyCoachScreen() {
         </Card>
       ) : (
         <Card style={{ gap: Spacing.md }}>
-          <Text style={ui.text}>The AI coach reads this week's numbers and writes you a short check-in: what went well and what to do next week.</Text>
+          <Text style={ui.text}>The AI coach reads this week&apos;s numbers and writes you a short check-in: what went well and what to do next week.</Text>
           <Text style={ui.muted}>It gets your totals only (workouts, food, sleep, weight), never your name or photos. You can ask 3 times a week.</Text>
           {cloudEnabled ? (
             <Button title={loading ? 'Thinking' : 'Get my weekly advice'} icon="sparkles" onPress={ask} disabled={loading} />

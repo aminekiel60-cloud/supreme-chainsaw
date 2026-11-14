@@ -116,6 +116,7 @@ export default function YouScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -Spacing.lg }} contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: 10 }}>
         <Tile icon="newspaper" label="Feed" detail="Friends and For You" tint="teal" onPress={() => router.push('/feed')} />
         <Tile icon="people" label="Friends" detail="Invite and add" tint="violet" badge={requests ? String(requests) : undefined} onPress={() => router.push('/friends')} />
+        <Tile icon="shield" label="Clubs" detail="Your gym, your team" tint="lime" onPress={() => router.push('/clubs')} />
         <Tile icon="flag" label="Challenges" detail="30 days with friends" tint="coral" onPress={() => router.push('/challenges')} />
         <Tile icon="podium" label="Ranking" detail="Points this week" tint="amber" onPress={() => router.push({ pathname: '/challenges', params: { tab: 'ranking' } })} />
       </ScrollView>
@@ -123,6 +124,7 @@ export default function YouScreen() {
       <Section title="Progress and reports" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -Spacing.lg }} contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: 10 }}>
         <Tile icon="stats-chart" label="Week in review" detail="Ready to share" onPress={() => router.push('/review')} />
+        <Tile icon="sparkles" label="Year in review" detail={`Your ${new Date().getFullYear()}`} tint="coral" onPress={() => router.push('/year')} />
         <Tile icon="body" label="Body" detail="Weight, sizes, photos" tint="blue" onPress={() => router.push('/body')} />
         <Tile icon="trophy" label="Records" detail="Best lifts" tint="amber" onPress={() => router.push('/records')} />
         <Tile icon="calendar" label="Calendar" detail="Every day" tint="teal" onPress={() => router.push('/calendar')} />
@@ -133,6 +135,7 @@ export default function YouScreen() {
       <Card style={{ padding: 0 }}>
         <ListRow icon="options" title="Goals" detail="Calories, macros, steps, water, training days" onPress={() => router.push('/goals')} />
         <ListRow icon="cart" title="Grocery list" detail="Tick things off in the shop" onPress={() => router.push('/grocery')} />
+        <ListRow icon="cloud-upload" title="Import workouts" detail="From Strong or Hevy" onPress={() => router.push('/import')} />
         <ListRow icon="watch" title="Connected devices" detail="Garmin, Polar, Samsung, Fitbit and more" onPress={() => router.push('/devices')} />
         {cloudEnabled && <ListRow icon="clipboard" title="Coach access" detail="Let a friend see your food and training" onPress={() => router.push('/coach-access')} />}
         <ListRow icon="settings" title="Settings" detail="Profile, reminders, privacy, account" onPress={() => router.push('/settings')} last />

@@ -264,6 +264,11 @@ export type Settings = {
   bigRing: 'calories' | 'habits';
   /** Weights shown in kg or lbs (always stored in kg) */
   units: 'kg' | 'lb';
+  /** Cards on Today, in order; the ones in todayHidden aren't shown */
+  todayCards: string[];
+  todayHidden: string[];
+  /** Monday of the week you said "Not now" to the calorie suggestion */
+  adaptiveSnoozed?: string;
 };
 
 export type AppState = {

@@ -17,6 +17,7 @@ import { haptics } from '@/lib/haptics';
 import { startWorkout } from '@/lib/workouts';
 import { addDays, prettyDate, startOfWeek, todayKey } from '@/store/dates';
 import { HABITS, LOCKED_IN_THRESHOLD, currentStreak, dayProgress, dayTotals, goalsFor, habitDone, readiness, weekPoints, workoutsOn } from '@/store/logic';
+import { adaptiveSuggestion } from '@/store/adaptive';
 import { useStore } from '@/store/store';
 import type { DateKey, Meal } from '@/store/types';
 
@@ -160,58 +161,90 @@ export default function TodayScreen() {
         </FadeInCard>
       )}
 
-      <Section title="Activity" />
+      {isToday && <AdaptiveCard />}
 
-      <FadeInCard index={3}>
-        <ExerciseDays day={day} />
-      </FadeInCard>
+      <Section title="Activity" onSeeAll={() => router.push('/today-cards')} seeAllLabel="Edit" />
 
-      <FadeInCard index={4}>
-        <FoodCard day={day} />
-      </FadeInCard>
-
-      {isToday && (
-        <FadeInCard index={5}>
-          <WaterCard />
-        </FadeInCard>
-      )}
-
-      <FadeInCard index={6}>
-        <Card style={{ gap: Spacing.md }}>
-          <View style={s.rowBetween}>
-            <Text style={[Type.heading, { color: Colors.text }]}>Daily habits</Text>
-            <Text style={{ color: Colors.lime, fontWeight: '800' }}>{Math.round(progress * 100)}%</Text>
-          </View>
-          <ProgressBar progress={progress} />
-          <HabitList date={day} />
-        </Card>
-      </FadeInCard>
-
-      {isToday && (
-        <FadeInCard index={7}>
-          <RecoverCard />
-        </FadeInCard>
-      )}
-
-      {isToday && (
-        <FadeInCard index={8} style={{ flexDirection: 'row', gap: Spacing.sm }}>
-          <Pressable style={{ flex: 1 }} onPress={() => router.push('/calendar')}>
-            <Card highlight style={s.smallCard}>
-              <Ionicons name="flame" size={22} color={Colors.lime} />
-              <Text style={ui.statLabel}>Streak</Text>
-              <Text style={ui.statValue}>{currentStreak(state)} {currentStreak(state) === 1 ? 'day' : 'days'}</Text>
-            </Card>
-          </Pressable>
-          <Pressable style={{ flex: 1 }} onPress={() => router.push('/review')}>
-            <Card style={s.smallCard}>
-              <Ionicons name="stats-chart" size={20} color={Colors.lime} />
-              <Text style={ui.statLabel}>Points this week</Text>
-              <Text style={ui.statValue}>{weekPoints(state)}</Text>
-            </Card>
-          </Pressable>
-        </FadeInCard>
-      )}
+      {state.settings.todayCards
+        .filter((c) => !state.settings.todayHidden.includes(c))
+        .map((c, i) => {
+          const card =
+            c === 'exercise' ? (
+              <ExerciseDays day={day} />
+            ) : c === 'food' ? (
+              <FoodCard day={day} />
+            ) : c === 'water' && isToday ? (
+              <WaterCard />
+            ) : c === 'habits' ? (
+              <Card style={{ gap: Spacing.md }}>
+                <View style={s.rowBetween}>
+                  <Text style={[Type.heading, { color: Colors.text }]}>Daily habits</Text>
+                  <Text style={{ color: Colors.lime, fontWeight: '800' }}>{Math.round(progress * 100)}%</Text>
+                </View>
+                <ProgressBar progress={progress} />
+                <HabitList date={day} />
+              </Card>
+            ) : c === 'recovery' && isToday ? (
+              <RecoverCard />
+            ) : c === 'streak' && isToday ? (
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                <Pressable style={{ flex: 1 }} onPress={() => router.push('/calendar')}>
+                  <Card highlight style={s.smallCard}>
+                    <Ionicons name="flame" size={22} color={Colors.lime} />
+                    <Text style={ui.statLabel}>Streak</Text>
+                    <Text style={ui.statValue}>
+                      {currentStreak(state)} {currentStreak(state) === 1 ? 'day' : 'days'}
+                    </Text>
+                  </Card>
+                </Pressable>
+                <Pressable style={{ flex: 1 }} onPress={() => router.push('/review')}>
+                  <Card style={s.smallCard}>
+                    <Ionicons name="stats-chart" size={20} color={Colors.lime} />
+                    <Text style={ui.statLabel}>Points this week</Text>
+                    <Text style={ui.statValue}>{weekPoints(state)}</Text>
+                  </Card>
+                </Pressable>
+              </View>
+            ) : null;
+          return card ? (
+            <FadeInCard key={c} index={3 + i}>
+              {card}
+            </FadeInCard>
+          ) : null;
+        })}
     </TabPage>
+  );
+}
+
+/** Weekly suggestion from adaptive calories: apply it or snooze it until next Monday. */
+function AdaptiveCard() {
+  const { state, dispatch } = useStore();
+  const week = startOfWeek(todayKey());
+  const a = adaptiveSuggestion(state);
+  if (!a || state.settings.adaptiveSnoozed === week) return null;
+  const apply = () => {
+    haptics.success();
+    dispatch({ type: 'setGoals', goals: { ...state.goals, kcal: a.target, carbs: a.carbs, customMacros: true } });
+  };
+  return (
+    <Card highlight style={{ gap: Spacing.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Ionicons name="analytics" size={20} color={Colors.lime} />
+        <Text style={[Type.heading, { color: Colors.text, flex: 1 }]}>Your real burn: {a.burn.toLocaleString('en-US')} kcal</Text>
+      </View>
+      <Text style={ui.muted}>
+        You ate about {a.avgIntake.toLocaleString('en-US')} kcal a day and your weight {a.kgPerWeek === 0 ? 'stayed the same' : `${a.kgPerWeek > 0 ? 'went up' : 'went down'} ${Math.abs(a.kgPerWeek)} kg a week`}. For your goal that means{' '}
+        {a.target.toLocaleString('en-US')} kcal a day instead of {state.goals.kcal.toLocaleString('en-US')}.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <Button title="Not now" variant="ghost" onPress={() => dispatch({ type: 'setSettings', settings: { ...state.settings, adaptiveSnoozed: week } })} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button title={`Use ${a.target.toLocaleString('en-US')}`} icon="checkmark" onPress={apply} />
+        </View>
+      </View>
+    </Card>
   );
 }
 

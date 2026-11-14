@@ -7,6 +7,7 @@ import { FormScroll } from '@/components/FormScroll';
 import { Pill } from '@/components/layout';
 import { Button, Card, Chip, Field, SectionTitle, styles as ui } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
+import { adaptiveCalories } from '@/store/adaptive';
 import { calculateGoals } from '@/store/logic';
 import { useStore } from '@/store/store';
 
@@ -89,6 +90,8 @@ export default function GoalsScreen() {
         )}
       </Card>
 
+      <AdaptiveInfo />
+
       <Card style={{ gap: Spacing.md }}>
         <SectionTitle>Training</SectionTitle>
         <Text style={ui.muted}>Days a week you want to train</Text>
@@ -138,5 +141,42 @@ function Chips({
         <Chip key={v} label={format(v)} active={selected === v} onPress={() => onSelect(v)} />
       ))}
     </View>
+  );
+}
+
+/** What adaptive calories knows so far, with a button to use its number. */
+function AdaptiveInfo() {
+  const { state, dispatch } = useStore();
+  const a = adaptiveCalories(state);
+  return (
+    <Card style={{ gap: Spacing.sm }}>
+      <SectionTitle>Adaptive calories</SectionTitle>
+      {a.ready ? (
+        <>
+          <Text style={ui.text}>
+            Your real burn is about {a.burn.toLocaleString('en-US')} kcal a day. For your goal: {a.target.toLocaleString('en-US')} kcal.
+          </Text>
+          <Text style={ui.muted}>
+            Based on {a.daysLogged} days of food and {a.weighIns} weigh-ins in the last 3 weeks. Weight trend: {a.kgPerWeek > 0 ? '+' : ''}
+            {a.kgPerWeek} kg a week.
+          </Text>
+          {a.target !== state.goals.kcal && (
+            <Button
+              title={`Use ${a.target.toLocaleString('en-US')} kcal`}
+              icon="checkmark"
+              variant="ghost"
+              onPress={() => {
+                dispatch({ type: 'setGoals', goals: { ...state.goals, kcal: a.target, carbs: a.carbs, customMacros: true } });
+                router.back();
+              }}
+            />
+          )}
+        </>
+      ) : (
+        <Text style={ui.muted}>
+          The app learns your real daily burn from what you eat and how your weight changes. {a.reason} Then you get a suggestion on Today every week.
+        </Text>
+      )}
+    </Card>
   );
 }

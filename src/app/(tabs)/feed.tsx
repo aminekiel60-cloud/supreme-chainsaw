@@ -3,10 +3,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { DemoFriends } from '@/components/DemoFriends';
+import { AppHeader } from '@/components/layout';
 import { PostCard } from '@/components/PostCard';
 import { Button, Card, styles as ui } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -26,11 +27,15 @@ import {
 import { cloudEnabled } from '@/lib/supabase';
 
 export default function FeedScreen() {
-  return cloudEnabled ? <CloudFeed /> : <DemoFriends />;
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }} edges={['top']}>
+      <AppHeader />
+      {cloudEnabled ? <CloudFeed /> : <DemoFriends />}
+    </SafeAreaView>
+  );
 }
 
 function CloudFeed() {
-  const insets = useSafeAreaInsets();
   const [scope, setScope] = useState<FeedScope>('following');
   const [posts, setPosts] = useState<Record<FeedScope, Post[] | null>>({ following: null, for_you: null });
   const [friends, setFriends] = useState<Friendship[]>([]);
@@ -178,6 +183,15 @@ function CloudFeed() {
         ))}
       </View>
 
+      {/* Share something */}
+      <Pressable onPress={() => router.push('/new-post')} style={s.composer} accessibilityLabel="New post">
+        <Ionicons name="camera" size={22} color={Colors.lime} />
+        <Text style={[ui.muted, { flex: 1, fontSize: 15 }]}>Share a photo, a meal or a PR</Text>
+        <View style={s.composerBtn}>
+          <Ionicons name="add" size={20} color={Colors.background} />
+        </View>
+      </Pressable>
+
       {/* Challenges banner */}
       <Pressable onPress={() => router.push('/challenges')}>
         <View style={s.banner}>
@@ -204,7 +218,7 @@ function CloudFeed() {
       <Card style={{ alignItems: 'center', gap: Spacing.md, paddingVertical: 28 }}>
         <Ionicons name="people" size={40} color={Colors.lime} />
         <Text style={[ui.text, { textAlign: 'center', fontWeight: '700' }]}>Your feed is waiting for friends</Text>
-        <Text style={[ui.muted, { textAlign: 'center' }]}>Your workouts and locked-in days show up here, together with your friends'.</Text>
+        <Text style={[ui.muted, { textAlign: 'center' }]}>Your workouts and locked-in days show up here, together with your friends&apos;.</Text>
         <Button title="Invite friends" icon="person-add" onPress={() => router.push('/friends')} />
       </Card>
     ) : (
@@ -231,12 +245,6 @@ function CloudFeed() {
         onEndReachedThreshold={0.5}
         refreshControl={<RefreshControl refreshing={loading && list !== null} onRefresh={() => load(scope)} tintColor={Colors.lime} colors={[Colors.lime]} />}
       />
-      <Pressable
-        style={[s.fab, { bottom: insets.bottom + 24 }]}
-        onPress={() => router.push('/new-post')}
-        accessibilityLabel="New post">
-        <Ionicons name="add" size={32} color={Colors.background} />
-      </Pressable>
     </View>
   );
 }
@@ -253,6 +261,7 @@ const s = StyleSheet.create({
   tabLine: { height: 3, width: 70, borderRadius: 2, backgroundColor: 'transparent' },
   banner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderRadius: Radius.lg, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
   bannerButton: { flexDirection: 'row', alignItems: 'center', gap: 2, borderWidth: 1, borderColor: Colors.lime, borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
-  fab: { position: 'absolute', right: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.lime, alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px rgba(163,255,63,0.35)' },
+  composer: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: 12, paddingLeft: 16, borderRadius: Radius.pill, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
+  composerBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.lime, alignItems: 'center', justifyContent: 'center' },
 });
 

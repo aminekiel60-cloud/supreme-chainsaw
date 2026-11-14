@@ -88,8 +88,11 @@ async function plan(state: AppState) {
 }
 
 /** Opens the screen a notification points to (e.g. the week review) when you tap it. */
+// Chosen once: the hook doesn't exist on web, and hooks must run the same way every render.
+const useLastResponse = Platform.OS === 'web' ? () => null : Notifications.useLastNotificationResponse;
+
 export function useNotificationLinks(active: boolean) {
-  const response = Platform.OS === 'web' ? null : Notifications.useLastNotificationResponse();
+  const response = useLastResponse();
   const handled = useRef<string | null>(null);
   useEffect(() => {
     const id = response?.notification.request.identifier;

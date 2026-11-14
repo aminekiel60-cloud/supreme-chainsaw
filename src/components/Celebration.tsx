@@ -3,7 +3,7 @@
  * Shown when you lock in your day (60%+) or complete every habit (100%).
  */
 import { useEffect, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,

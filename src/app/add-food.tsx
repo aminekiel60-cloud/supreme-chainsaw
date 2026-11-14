@@ -107,7 +107,7 @@ export default function AddFoodScreen() {
         <Pressable onPress={() => router.push('/my-food')}>
           <Card style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
             <Ionicons name="bookmark-outline" size={22} color={Colors.lime} />
-            <Text style={[ui.muted, { flex: 1 }]}>Create foods that are not in a database, like your mum's lasagne. Hold one to edit it.</Text>
+            <Text style={[ui.muted, { flex: 1 }]}>Create foods that are not in a database, like your mum&apos;s lasagne. Hold one to edit it.</Text>
           </Card>
         </Pressable>
       )}

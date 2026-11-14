@@ -42,6 +42,8 @@ const initialState: AppState = {
     startScreen: 'today',
     bigRing: 'calories',
     units: 'kg',
+    todayCards: ['exercise', 'food', 'water', 'habits', 'recovery', 'streak'],
+    todayHidden: [],
   },
   goals: { ...DEFAULT_HABIT_GOALS, kcal: 2400, protein: 160, carbs: 260, fat: 75 },
   health: {},

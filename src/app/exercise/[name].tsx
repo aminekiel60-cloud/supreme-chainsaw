@@ -1,5 +1,4 @@
 /** EXERCISE: how to do it, your records, progress chart and history for one exercise. */
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';

@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,6 +17,7 @@ import { levelInfo, totalXp } from '@/store/progress';
 import { useStore } from '@/store/store';
 import { Avatar } from './Avatar';
 import { Logo } from './Logo';
+import { QuickAdd } from './QuickAdd';
 import { ProgressRing } from './ProgressRing';
 import type { IconName } from './ui';
 
@@ -30,8 +31,8 @@ export function AppHeader({ dot }: { dot?: boolean }) {
       </Pressable>
       <Logo size={24} />
       <View style={[s.headerSide, { justifyContent: 'flex-end', gap: 16 }]}>
-        <Pressable hitSlop={10} onPress={() => router.push('/feed')} accessibilityLabel="Feed">
-          <Ionicons name="chatbubbles-outline" size={23} color={Colors.text} />
+        <Pressable hitSlop={10} onPress={() => router.push('/friends')} accessibilityLabel="Friends">
+          <Ionicons name="people-outline" size={24} color={Colors.text} />
           {dot && <View style={s.dot} />}
         </Pressable>
         <Pressable hitSlop={8} onPress={() => router.navigate('/you')} accessibilityLabel="Your profile">
@@ -97,15 +98,31 @@ export function StackPage({
 const TAB_ICONS: Record<string, [IconName, IconName]> = {
   index: ['sunny-outline', 'sunny'],
   coach: ['barbell-outline', 'barbell'],
+  feed: ['people-outline', 'people'],
   you: ['grid-outline', 'grid'],
 };
 
 /** Bottom tabs with a lime pill behind the active icon. */
 export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const [adding, setAdding] = useState(false);
+  const plus = (
+    <View key="plus" style={s.tab}>
+      <Pressable
+        onPress={() => {
+          haptics.tap();
+          setAdding(true);
+        }}
+        style={({ pressed }) => [s.plus, pressed && { transform: [{ scale: 0.94 }] }]}
+        accessibilityLabel="Log something">
+        <Ionicons name="add" size={30} color={Colors.background} />
+      </Pressable>
+    </View>
+  );
   return (
     <View style={[s.tabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {state.routes.map((route, i) => {
+      <QuickAdd open={adding} onClose={() => setAdding(false)} />
+      {state.routes.flatMap((route, i) => {
         const focused = state.index === i;
         const { options } = descriptors[route.key];
         const label = typeof options.title === 'string' ? options.title : route.name;
@@ -117,7 +134,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTab
             navigateToTab(route.key);
           }
         };
-        return (
+        const tab = (
           <Pressable
             key={route.key}
             onPress={onPress}
@@ -131,6 +148,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTab
             <Text style={[s.tabLabel, focused && { color: Colors.text }]}>{label}</Text>
           </Pressable>
         );
+        return i === 1 ? [tab, plus] : [tab];
       })}
     </View>
   );
@@ -331,6 +349,7 @@ const s = StyleSheet.create({
   pill: { width: 64, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   pillActive: { backgroundColor: Colors.limeSoft },
   tabLabel: { color: Colors.textMuted, fontSize: 12, fontWeight: '700' },
+  plus: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.lime, alignItems: 'center', justifyContent: 'center', marginTop: -14, borderWidth: 4, borderColor: '#0B0B0B', boxShadow: '0 4px 16px rgba(163,255,63,0.3)' },
 
   miniRing: { flex: 1, alignItems: 'center', gap: 4 },
   miniValue: { color: Colors.text, fontSize: 20, fontWeight: '800', marginTop: 4 },

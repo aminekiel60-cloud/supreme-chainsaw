@@ -40,7 +40,7 @@ export function FloatingWorkout() {
 
   const elapsed = Math.floor((now - new Date(aw.startedAt).getTime()) / 1000);
   // Above the tab bar on the tabs, lower on other screens.
-  const onTabs = pathname === '/' || pathname === '/coach' || pathname === '/you';
+  const onTabs = pathname === '/' || pathname === '/coach' || pathname === '/feed' || pathname === '/you';
   const bottom = insets.bottom + (onTabs ? 84 : 20);
 
   const skip = () => {

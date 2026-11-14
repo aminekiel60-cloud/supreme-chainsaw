@@ -298,7 +298,6 @@ export async function getComments(postId: string): Promise<Comment[]> {
     .eq('post_id', postId)
     .order('created_at');
   if (error) throw error;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((c) => ({
     id: c.id,
     body: c.body,
@@ -469,7 +468,6 @@ export async function listChallenges(): Promise<Challenge[]> {
     .order('end_date');
   if (error) throw error;
   const me = await myId();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((c) => ({
     ...c,
     members: c.challenge_members
