@@ -1,5 +1,6 @@
 /** Working sets per muscle group this week, so you can spot what you're skipping. */
-import { Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { MUSCLE_LABELS } from '@/data/exercises';
@@ -21,7 +22,15 @@ export function MuscleBalance() {
 
   return (
     <Card style={{ gap: Spacing.sm }}>
-      <SectionTitle action={<Text style={ui.muted}>{total} working sets</Text>}>Muscles this week</SectionTitle>
+      <SectionTitle
+        action={
+          <Pressable onPress={() => router.push('/anatomy')} hitSlop={8}>
+            <Text style={{ color: Colors.lime, fontWeight: '700' }}>Body map</Text>
+          </Pressable>
+        }>
+        Muscles this week
+      </SectionTitle>
+      <Text style={ui.muted}>{total} working sets</Text>
       {SHOWN.map((m) => (
         <View key={m} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
           <Text style={[ui.muted, { width: 86 }]}>{MUSCLE_LABELS[m]}</Text>

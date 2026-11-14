@@ -131,6 +131,7 @@ function RootStack() {
           <Stack.Screen name="feed" options={{ title: 'Feed' }} />
           <Stack.Screen name="new-post" options={{ presentation: 'modal', title: 'New post' }} />
           <Stack.Screen name="programs" options={{ title: 'Programs' }} />
+          <Stack.Screen name="anatomy" options={{ title: 'Body map' }} />
           <Stack.Screen name="tools" options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }} />
           <Stack.Screen name="body" options={{ title: 'Body' }} />
           <Stack.Screen name="grocery" options={{ title: 'Grocery list' }} />

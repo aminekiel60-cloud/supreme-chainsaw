@@ -115,6 +115,7 @@ export default function CoachScreen() {
       <Section title="Collections" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -Spacing.lg }} contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: 10 }}>
         <Tile icon="map" label="Programs" detail={state.program ? 'Following one' : '5 plans'} onPress={() => router.push('/programs')} />
+        <Tile icon="body" label="Body map" detail="Tap a muscle" tint="teal" onPress={() => router.push('/anatomy')} />
         <Tile icon="list" label="Routines" detail={`${state.routines.length} saved`} tint="violet" onPress={() => router.push('/routines')} />
         <Tile icon="book" label="Exercises" detail="Library and records" tint="teal" onPress={() => router.push({ pathname: '/exercise-picker', params: { target: 'browse' } })} />
         <Tile icon="create" label="Log a workout" detail="Afterwards, by hand" tint="amber" onPress={() => router.push('/log-workout')} />
