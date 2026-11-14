@@ -5,7 +5,7 @@
  */
 import { addDays, startOfWeek, todayKey } from '@/store/dates';
 import { dayTotals, formatDistance, isLockedIn, pace } from '@/store/logic';
-import type { AppState, DateKey, WorkoutType } from '@/store/types';
+import type { AppState, DateKey, Workout, WorkoutType } from '@/store/types';
 import { uploadPhoto, workoutPhotoUrls } from './photos';
 import { db } from './supabase';
 
@@ -329,6 +329,63 @@ function hash(text: string) {
   return (h >>> 0).toString(36);
 }
 
+/** The feed post for a workout. */
+function workoutPost(me: string, w: Workout) {
+  const stats = [{ label: 'Time', value: `${w.durationMin} min` }];
+  if (w.distanceKm) stats.unshift({ label: 'Distance', value: formatDistance(w) });
+  if (w.distanceKm) stats.push({ label: w.type === 'cycle' ? 'Speed' : 'Pace', value: pace(w) ?? '' });
+  if (w.exercises?.length) {
+    const sets = w.exercises.reduce((t, e) => t + e.sets.length, 0);
+    stats.unshift({ label: 'Exercises', value: String(w.exercises.length) }, { label: 'Sets', value: String(sets) });
+  }
+  if (w.prs?.length) stats.push({ label: 'PRs', value: `🏆 ${w.prs.length}` });
+  return {
+    user_id: me,
+    ref: `workout:${w.id}`,
+    kind: 'workout',
+    title: w.title,
+    stats,
+    workout_type: w.type as string | undefined,
+    tagged: (w.tagged ?? []).map((t) => t.id),
+    visibility: (w.shared === 'public' ? 'public' : 'friends') as Visibility,
+    caption: w.caption?.trim() || null,
+  };
+}
+
+/**
+ * Post (or update, or remove) one workout on the feed right away, so the
+ * workout page can show whether it really worked. Photos follow with the
+ * regular background sync.
+ */
+export async function postWorkoutNow(w: Workout): Promise<'posted' | 'removed'> {
+  const me = await myId();
+  const ref = `workout:${w.id}`;
+  if ((w.shared ?? 'friends') === 'none') {
+    const { error } = await db().from('posts').delete().eq('user_id', me).eq('ref', ref);
+    if (error) throw error;
+    return 'removed';
+  }
+  const post = workoutPost(me, w);
+  const { data: existing, error: findError } = await db().from('posts').select('id').eq('user_id', me).eq('ref', ref).maybeSingle();
+  if (findError) throw findError;
+  if (existing) {
+    const { title, stats, workout_type, tagged, visibility, caption } = post;
+    const { error } = await db().from('posts').update({ title, stats, workout_type, tagged, visibility, caption }).eq('id', existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await db().from('posts').insert(post);
+    if (error) throw error;
+  }
+  return 'posted';
+}
+
+/** Is this workout on the feed? */
+export async function isWorkoutPosted(workoutId: string): Promise<boolean> {
+  const me = await myId();
+  const { data } = await db().from('posts').select('id').eq('user_id', me).eq('ref', `workout:${workoutId}`).maybeSingle();
+  return Boolean(data);
+}
+
 export async function shareRecentActivity(state: AppState) {
   const me = await myId();
   const since = addDays(todayKey(), -6);
@@ -346,27 +403,7 @@ export async function shareRecentActivity(state: AppState) {
 
   // Only workouts you chose to share (older ones, saved before you could choose, count as friends).
   const recent = state.workouts.filter((x) => x.date >= since && (x.shared ?? 'friends') !== 'none');
-  for (const w of recent) {
-    const stats = [{ label: 'Time', value: `${w.durationMin} min` }];
-    if (w.distanceKm) stats.unshift({ label: 'Distance', value: formatDistance(w) });
-    if (w.distanceKm) stats.push({ label: w.type === 'cycle' ? 'Speed' : 'Pace', value: pace(w) ?? '' });
-    if (w.exercises?.length) {
-      const sets = w.exercises.reduce((t, e) => t + e.sets.length, 0);
-      stats.unshift({ label: 'Exercises', value: String(w.exercises.length) }, { label: 'Sets', value: String(sets) });
-    }
-    if (w.prs?.length) stats.push({ label: 'PRs', value: `🏆 ${w.prs.length}` });
-    posts.push({
-      user_id: me,
-      ref: `workout:${w.id}`,
-      kind: 'workout',
-      title: w.title,
-      stats,
-      workout_type: w.type,
-      tagged: (w.tagged ?? []).map((t) => t.id),
-      visibility: w.shared === 'public' ? 'public' : 'friends',
-      caption: w.caption?.trim() || null,
-    });
-  }
+  for (const w of recent) posts.push(workoutPost(me, w));
 
   for (let d: DateKey = since; d <= todayKey(); d = addDays(d, 1)) {
     if (!isLockedIn(state, d)) continue;
@@ -380,11 +417,16 @@ export async function shareRecentActivity(state: AppState) {
         { label: 'Calories', value: `${Math.round(t.kcal)} kcal` },
         { label: 'Protein', value: `${Math.round(t.protein)} g` },
       ],
+      // Rows in one batch must have the same fields, or the missing ones are sent as empty.
+      tagged: [],
+      visibility: 'friends',
+      caption: null,
     });
   }
 
   if (posts.length) {
-    const { error } = await db().from('posts').upsert(posts, { onConflict: 'user_id,ref', ignoreDuplicates: true });
+    // defaultToNull: false lets the database fill in anything a row leaves out.
+    const { error } = await db().from('posts').upsert(posts, { onConflict: 'user_id,ref', ignoreDuplicates: true, defaultToNull: false });
     if (error) throw error;
   }
 
@@ -420,8 +462,8 @@ export async function shareRecentActivity(state: AppState) {
     if (Object.keys(changes).length) await db().from('posts').update(changes).eq('id', post.id);
   }
 
-  // Remove feed posts for workouts you deleted.
-  const keep = new Set(posts.map((p) => p.ref));
+  // Remove feed posts for workouts you deleted or set to "Don't share".
+  const keep = new Set(state.workouts.filter((w) => (w.shared ?? 'friends') !== 'none').map((w) => `workout:${w.id}`));
   const { data: mine } = await db()
     .from('posts')
     .select('id, ref')
